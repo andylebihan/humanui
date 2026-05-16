@@ -42,6 +42,20 @@ namespace HumanUI.Tests
             Assert.Equal(WindowStartupLocation.CenterScreen, win.WindowStartupLocation);
         }
 
+        [Fact]
+        public void ValueListener_EventedElementsIsInstanceLevel()
+        {
+            // The original code made this static, so two ValueListener components on
+            // the same canvas trampled each other's wired-element bookkeeping. Pin the
+            // instance-level layout to prevent regression.
+            var field = typeof(ValueListener_Component).GetField(
+                "eventedElements",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.NotNull(field);
+            Assert.False(field.IsStatic, "eventedElements must not be static");
+        }
+
         // Every MahApps pack-URI the codebase loads at runtime. If a future MahApps upgrade or
         // an Eto migration moves any of these, the test fails with the specific URI that broke.
         public static IEnumerable<object[]> MahAppsResourceUris()
