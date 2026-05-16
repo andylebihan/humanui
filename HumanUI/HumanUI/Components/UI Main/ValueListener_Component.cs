@@ -17,6 +17,7 @@ using De.TorstenMandelkow.MetroChart;
 using Grasshopper.Kernel.Parameters;
 using MahApps.Metro.Controls;
 using RangeSlider = MahApps.Metro.Controls.RangeSlider;
+using ColorPicker = Xceed.Wpf.Toolkit.ColorPicker;
 using System.Windows.Input;
 
 namespace HumanUI
@@ -368,8 +369,8 @@ namespace HumanUI
                     return;
                 case "MahApps.Metro.Controls.ToggleSwitch":
                     ToggleSwitch ts = u as ToggleSwitch;
-                    ts.IsCheckedChanged -= ExpireThis;
-                    ts.IsCheckedChanged += ExpireThis;
+                    ts.Toggled -= ExpireThis;
+                    ts.Toggled += ExpireThis;
                     return;
                 case "MahApps.Metro.Controls.RangeSlider":
                     RangeSlider rs = u as RangeSlider;
@@ -523,7 +524,7 @@ namespace HumanUI
                     return;
                 case "MahApps.Metro.Controls.ToggleSwitch":
                     ToggleSwitch ts = u as ToggleSwitch;
-                    ts.IsCheckedChanged -= ExpireThis;
+                    ts.Toggled -= ExpireThis;
                     return;
                 case "MahApps.Metro.Controls.RangeSlider":
                     RangeSlider rs = u as RangeSlider;
