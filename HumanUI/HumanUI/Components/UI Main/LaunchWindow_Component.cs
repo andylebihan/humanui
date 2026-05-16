@@ -97,11 +97,22 @@ namespace HumanUI.Components.UI_Main
             DA.GetData<string>("Name", ref windowName);
             DA.GetData<int>("Width", ref width);
             DA.GetData<int>("Height", ref height);
+
+            // If SetupWin failed in BeforeSolveInstance (e.g. an upstream XAML/resource
+            // problem), mw is null and any property access below NREs. Surface a clear
+            // runtime message instead of a silent "nothing happens".
+            if (mw == null)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error,
+                    "Window failed to initialize. See Rhino command line for details.");
+                return;
+            }
+
             mw.Title = windowName;
             mw.Height = height;
             mw.Width = width;
             mw.HorizontalScrollingEnabled = enableHorizScroll;
-            
+
 
 
             //this nebulous "ShouldBeVisible" helps account for the fact that there are other conditions controling window visibility (see SetupWin and HideWindow methods in this class) - lets us separate what the user wants from what should actually happen at any moment.
@@ -109,6 +120,11 @@ namespace HumanUI.Components.UI_Main
             {
                 shouldBeVisible = true;
                 mw.Show();
+                // WPF's Show() does not bring the window to front when another HWND
+                // already has focus (the canvas the user just clicked on). Without
+                // Activate(), the window opens behind Rhino on first toggle -- a
+                // long-standing forum complaint.
+                mw.Activate();
             }
             else
             {
@@ -166,6 +182,20 @@ namespace HumanUI.Components.UI_Main
         /// </summary>
         private void SetupWin()
         {
+            // Capture the position/size of any existing window before we replace it, so
+            // a SetupWin triggered by something other than first-launch (e.g. menu change,
+            // a doc-changed reset) doesn't yank the window back to the default location.
+            // The user's hand-placed position via SetWindowProperties would otherwise be
+            // lost on every internal recreate.
+            double? carryLeft = null, carryTop = null, carryWidth = null, carryHeight = null;
+            if (mw != null && mw.IsLoaded && !double.IsNaN(mw.Left) && !double.IsNaN(mw.Top))
+            {
+                carryLeft = mw.Left;
+                carryTop = mw.Top;
+                carryWidth = mw.Width;
+                carryHeight = mw.Height;
+            }
+
             //try closing a window if it's already up
             try
             {
@@ -174,7 +204,15 @@ namespace HumanUI.Components.UI_Main
             catch { }
 
             mw = new MainWindow();
-            //Add a listener for window close 
+            if (carryLeft.HasValue)
+            {
+                mw.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+                mw.Left = carryLeft.Value;
+                mw.Top = carryTop.Value;
+                mw.Width = carryWidth.Value;
+                mw.Height = carryHeight.Value;
+            }
+            //Add a listener for window close
             mw.Closed += mw_Closed;
 
             //set ownership based on child status 

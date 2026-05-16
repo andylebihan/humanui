@@ -31,6 +31,17 @@ namespace HumanUI.Tests
             Assert.Equal(3, win.Resources.MergedDictionaries.Count);
         }
 
+        [StaFact]
+        public void MainWindow_DefaultsToCenterScreen()
+        {
+            // Guards against a regression of the "appears off-screen on multi-monitor"
+            // failure mode: when WindowStartupLocation defaults to Manual the window
+            // opens at (0, 0) on the primary monitor regardless of where Rhino lives.
+            EnsureApplication();
+            var win = new HumanUIBaseApp.MainWindow();
+            Assert.Equal(WindowStartupLocation.CenterScreen, win.WindowStartupLocation);
+        }
+
         // Every MahApps pack-URI the codebase loads at runtime. If a future MahApps upgrade or
         // an Eto migration moves any of these, the test fails with the specific URI that broke.
         public static IEnumerable<object[]> MahAppsResourceUris()
