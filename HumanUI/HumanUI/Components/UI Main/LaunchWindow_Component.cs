@@ -35,6 +35,10 @@ namespace HumanUI.Components.UI_Main
         protected MainWindow mw;
         bool shouldBeVisible = true;
         bool enableHorizScroll = false;
+        // True when *we* are closing the window (RemovedFromDocument / SetupWin tear-down).
+        // The Closing handler uses this to distinguish a user X-click from a programmatic
+        // close and only the latter is allowed to actually destroy mw.
+        bool _allowProgrammaticClose = false;
 
         /// <summary>
         /// Each implementation of GH_Component must provide a public 
@@ -196,12 +200,19 @@ namespace HumanUI.Components.UI_Main
                 carryHeight = mw.Height;
             }
 
-            //try closing a window if it's already up
+            //try closing a window if it's already up. SetupWin is a programmatic teardown
+            //(menu change, doc reset) so we allow the Closing handler to let the Close go
+            //through rather than intercepting it as a user X-click.
             try
             {
+                _allowProgrammaticClose = true;
                 mw?.Close();
             }
             catch { }
+            finally
+            {
+                _allowProgrammaticClose = false;
+            }
 
             mw = new MainWindow();
             if (carryLeft.HasValue)
@@ -212,7 +223,10 @@ namespace HumanUI.Components.UI_Main
                 mw.Width = carryWidth.Value;
                 mw.Height = carryHeight.Value;
             }
-            //Add a listener for window close
+            //Closing intercepts a user X-click so we hide instead of destroying the window.
+            //Destroying loses all wired-up element state and forces a full rebuild downstream.
+            mw.Closing += mw_Closing;
+            //Closed is still wired as a safety net for genuinely closed windows.
             mw.Closed += mw_Closed;
 
             //set ownership based on child status 
@@ -266,11 +280,26 @@ namespace HumanUI.Components.UI_Main
 
 
 
+        // Intercept a user X-click on the window. Without this the Closed event fires,
+        // mw_Closed rebuilds the window in the background, and the user's "close" gets
+        // resurrected on the next solve -- the long-running "I closed it but it came
+        // back" / "duplicate windows after toggle spam" forum complaint. Programmatic
+        // closes (SetupWin tear-down, RemovedFromDocument) set _allowProgrammaticClose
+        // first so the actual close goes through.
+        void mw_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (_allowProgrammaticClose) return;
+            e.Cancel = true;
+            shouldBeVisible = false;
+            mw.Hide();
+        }
+
         void mw_Closed(object sender, EventArgs e)
         {
-            //remove the listener
+            //remove the listeners
+            mw.Closing -= mw_Closing;
             mw.Closed -= mw_Closed;
-            //initialize a brand new window. Once it's closed, you can't get it back. 
+            //initialize a brand new window. Once it's closed, you can't get it back.
             SetupWin();
         }
 
@@ -409,9 +438,14 @@ namespace HumanUI.Components.UI_Main
         {
             try
             {
-                mw.Close();
+                _allowProgrammaticClose = true;
+                mw?.Close();
             }
             catch { }
+            finally
+            {
+                _allowProgrammaticClose = false;
+            }
             base.RemovedFromDocument(document);
         }
 
