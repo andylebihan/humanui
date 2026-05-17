@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>net7.0-windows</TargetFramework>
-    <UseWPF>true</UseWPF>
     <RootNamespace>HumanUIBaseApp</RootNamespace>
     <AssemblyName>HumanUIBaseApp</AssemblyName>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -13,12 +12,17 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <DisableImplicitFrameworkReferences>false</DisableImplicitFrameworkReferences>
     <NoWarn>$(NoWarn);NU1701</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MahApps.Metro" Version="2.4.10" />
+    <!-- Use the signed Eto.dll that ships inside the RhinoCommon NuGet (PublicKeyToken
+         552281e97c755530, signed by McNeel). The plain Eto.Forms NuGet has the same
+         version number but no public key token, so the two are treated as distinct
+         assemblies and a downstream project that mixes them gets CS0012 / CS1061
+         resolution errors. RhinoCommon's runtime is excluded so we don't redistribute
+         it; Rhino provides it at load time. -->
+    <PackageReference Include="RhinoCommon" Version="8.31.26126.13431" ExcludeAssets="runtime" />
   </ItemGroup>
 
 </Project>
