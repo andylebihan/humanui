@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Eto.Forms;
+using Grasshopper.Kernel.Types;
 
 namespace HumanUI
 {
@@ -13,6 +14,60 @@ namespace HumanUI
     /// </summary>
     internal static class HUI_Util
     {
+        /// <summary>
+        /// Extract a typed Eto control from whatever flavour of wrapper Grasshopper hands
+        /// us. Set-* components always go through this entry point so they accept the
+        /// same wire input as the Create-* components produce.
+        /// </summary>
+        public static T GetUIElement<T>(object o) where T : Control
+        {
+            switch (o)
+            {
+                case UIElement_Goo goo: return goo.element as T;
+                case GH_ObjectWrapper wrapper: return wrapper.Value as T;
+                default: return o as T;
+            }
+        }
+
+        /// <summary>
+        /// Walk a container subtree depth-first for the first HUI_FloatSlider. Used by
+        /// SetSlider / ValueListener.
+        /// </summary>
+        public static Components.UI_Elements.HUI_FloatSlider findSlider(Control control)
+        {
+            if (control == null) return null;
+            if (control is Components.UI_Elements.HUI_FloatSlider slider) return slider;
+            if (control is Container c)
+            {
+                foreach (var child in c.Controls)
+                {
+                    var found = findSlider(child);
+                    if (found != null) return found;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Walk a container subtree depth-first looking for the first TextBox. Used by
+        /// SetTextBox / ValueListener to peel a HUI textbox composite (StackLayout with
+        /// optional Label + TextBox + optional Button) down to its TextBox child.
+        /// </summary>
+        public static TextBox findTextBox(Control control)
+        {
+            if (control == null) return null;
+            if (control is TextBox tb) return tb;
+            if (control is Container c)
+            {
+                foreach (var child in c.Controls)
+                {
+                    var found = findTextBox(child);
+                    if (found != null) return found;
+                }
+            }
+            return null;
+        }
+
         /// <summary>
         /// Detach a control from its current parent so a new container can adopt it. This
         /// matters because the same UIElement_Goo can be passed to multiple Set / Container

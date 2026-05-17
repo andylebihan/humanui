@@ -54,6 +54,23 @@
     <Compile Remove="Components\UI Elements\**\*.cs" />
     <Compile Remove="Components\UI Graphs\**\*.cs" />
     <Compile Remove="Components\UI Output\**\*.cs" />
+    <!-- Phase 1 (Tier-1 elements): each ported component re-included individually as the
+         corresponding Eto reimplementation lands. -->
+    <Compile Include="Components\UI Elements\CreateLabel_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateTextBlock_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateCheckBox_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateButton_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateTextBox_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateListBox_Component.cs" />
+    <Compile Include="Components\UI Elements\CreatePullDown_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateSlider_Component.cs" />
+    <Compile Include="Components\UI Output\SetLabel_Component.cs" />
+    <Compile Include="Components\UI Output\SetTextBlock_Component.cs" />
+    <Compile Include="Components\UI Output\SetCheckBox_Component.cs" />
+    <Compile Include="Components\UI Output\SetButton_Component.cs" />
+    <Compile Include="Components\UI Output\SetTextBox_Component.cs" />
+    <Compile Include="Components\UI Output\SetList_Component.cs" />
+    <Compile Include="Components\UI Output\SetSlider_Component.cs" />
     <Compile Remove="Deprecated\**\*.cs" />
     <Compile Remove="Components\UI Main\AdjustElementAppearance_Component.cs" />
     <Compile Remove="Components\UI Main\AdjustElementPositioning_Component.cs" />
