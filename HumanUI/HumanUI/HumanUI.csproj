@@ -49,6 +49,14 @@
     components against master so the regression test still passes.
   -->
   <ItemGroup>
+    <!-- Upgraders that reference components still excluded in Phase 2 are themselves
+         excluded for now; the rest (Pulldown, Slider, AdjustElementAppearance,
+         RestoreState, TextBox) handle pure GH_UpgradeUtil swap-by-GUID so they compile
+         cleanly without needing their target component types alive at compile time. -->
+    <Compile Remove="Upgraders\Upgrade_ValueListener.cs" />
+    <Compile Remove="Upgraders\Upgrade_SetWindowPropertiesComponent.cs" />
+    <Compile Remove="Upgraders\Upgrade_SetTabs.cs" />
+    <Compile Remove="Upgraders\Upgrade_GridComponent.cs" />
     <Compile Remove="Components\Testing - Troubleshooting\**\*.cs" />
     <Compile Remove="Components\UI Containers\**\*.cs" />
     <Compile Remove="Components\UI Elements\**\*.cs" />
@@ -71,6 +79,10 @@
     <Compile Include="Components\UI Elements\CreateListBox_Component.cs" />
     <Compile Include="Components\UI Elements\CreatePullDown_Component.cs" />
     <Compile Include="Components\UI Elements\CreateSlider_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateImage_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateColorPicker_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateShape_Component.cs" />
+    <Compile Include="Components\UI Elements\Create3DView_Component.cs" />
     <Compile Include="Components\UI Output\SetLabel_Component.cs" />
     <Compile Include="Components\UI Output\SetTextBlock_Component.cs" />
     <Compile Include="Components\UI Output\SetCheckBox_Component.cs" />
@@ -78,6 +90,10 @@
     <Compile Include="Components\UI Output\SetTextBox_Component.cs" />
     <Compile Include="Components\UI Output\SetList_Component.cs" />
     <Compile Include="Components\UI Output\SetSlider_Component.cs" />
+    <Compile Include="Components\UI Output\SetImage_Component.cs" />
+    <Compile Include="Components\UI Output\SetColorPicker_Component.cs" />
+    <Compile Include="Components\UI Output\SetShape_Component.cs" />
+    <Compile Include="Components\UI Output\Set3DView_Component.cs" />
     <Compile Remove="Deprecated\**\*.cs" />
     <Compile Remove="Components\UI Main\AdjustElementAppearance_Component.cs" />
     <Compile Remove="Components\UI Main\AdjustElementPositioning_Component.cs" />
@@ -106,7 +122,6 @@
     <Compile Remove="Custom Types\SliderEntryTextBox.cs" />
     <Compile Remove="Custom Types\StateSet_Goo.cs" />
     <Compile Remove="Custom Types\TrueOnlyButton.cs" />
-    <Compile Remove="Upgraders\**\*.cs" />
   </ItemGroup>
 
   <!-- Emit a .gha alongside the .dll for Grasshopper packaging. -->
