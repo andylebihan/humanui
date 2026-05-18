@@ -1,22 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Windows.Controls;
+using System;
+using System.IO;
+using Eto.Drawing;
+using Eto.Forms;
 using Grasshopper.Kernel;
-using Grasshopper.Kernel.Types;
-using Rhino.Geometry;
-using System.Windows.Media.Imaging;
 
 namespace HumanUI.Components.UI_Output
 {
-    /// <summary>
-    /// Component to modify the source of an existing image
-    /// </summary>
-    /// <seealso cref="Grasshopper.Kernel.GH_Component" />
     public class SetImage_Component : GH_Component
     {
-        /// <summary>
-        /// Initializes a new instance of the SetImage_Component class.
-        /// </summary>
         public SetImage_Component()
             : base("Set Image", "SetImg",
                 "Change the content of an existing Image control.",
@@ -24,52 +15,38 @@ namespace HumanUI.Components.UI_Output
         {
         }
 
-        /// <summary>
-        /// Registers all the input parameters for this component.
-        /// </summary>
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Image to modify", "I", "The image object to modify", GH_ParamAccess.item);
             pManager.AddTextParameter("New Image Path", "I2", "The path to a new image to replace in the window", GH_ParamAccess.item);
-   
         }
 
-        /// <summary>
-        /// Registers all the output parameters for this component.
-        /// </summary>
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
-        {
-           
-        }
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager) { }
 
-        /// <summary>
-        /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            object ImageObject = null;
-            string newImagePath = "";
-            if (!DA.GetData<string>("New Image Path", ref newImagePath)) return;
-            if (!DA.GetData<object>("Image to modify", ref ImageObject)) return;
-            Image l = HUI_Util.GetUIElement<Image>(ImageObject);
+            object imageObject = null;
+            string newPath = "";
+            if (!DA.GetData("New Image Path", ref newPath)) return;
+            if (!DA.GetData("Image to modify", ref imageObject)) return;
 
-            if (l != null)
+            var view = HUI_Util.GetUIElement<ImageView>(imageObject);
+            if (view == null) return;
+            try
             {
-                HUI_Util.SetImageSource(newImagePath, l);
+                if (File.Exists(newPath))
+                    view.Image = new Bitmap(newPath);
+                else
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Image file not found: {newPath}");
+            }
+            catch (Exception e)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, e.Message);
             }
         }
 
-        
-
-        /// <summary>
-        /// Provides an Icon for the component.
-        /// </summary>
         protected override System.Drawing.Bitmap Icon => Properties.Resources.SetImage;
 
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
         public override Guid ComponentGuid => new Guid("{bc15817d-291f-461b-a1a8-f3c66fd053be}");
     }
 }
