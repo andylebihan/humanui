@@ -1,25 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-
+using System;
+using Eto.Drawing;
+using Eto.Forms;
 using Grasshopper.Kernel;
-using Rhino.Geometry;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using Color = System.Drawing.Color;
+using SysColor = System.Drawing.Color;
 
 namespace HumanUI.Components.UI_Containers
 {
     /// <summary>
-    /// Create a "Border" container - this essentially allows the arbitrary scaling up or down of contained elements. 
+    /// Wraps content in a Drawable that paints a coloured border around the child. Eto
+    /// doesn't have a built-in WPF-equivalent Border control; we render the outline via
+    /// the Drawable's Paint event and host the actual content in a Panel layered on top.
     /// </summary>
-    /// <seealso cref="Grasshopper.Kernel.GH_Component" />
     public class CreateBorder_Component : GH_Component
     {
-        /// <summary>
-        /// Initializes a new instance of the CreateBorder_Component class.
-        /// </summary>
         public CreateBorder_Component()
             : base("Create Border", "Border",
                 "Wrap Elements with a border.",
@@ -27,67 +20,69 @@ namespace HumanUI.Components.UI_Containers
         {
         }
 
-        /// <summary>
-        /// Registers all the input parameters for this component.
-        /// </summary>
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("UI Element", "E", "The UI element to include", GH_ParamAccess.item);
             pManager.AddNumberParameter("Border Thickness", "T", "Border thickness", GH_ParamAccess.item, 5.0);
-            pManager.AddColourParameter("Border Color", "C", "Border color", GH_ParamAccess.item, Color.Black);
+            pManager.AddColourParameter("Border Color", "C", "Border color", GH_ParamAccess.item, SysColor.Black);
             pManager.AddNumberParameter("Corner Radius", "R", "Border corner radius", GH_ParamAccess.item, 0);
         }
 
-        /// <summary>
-        /// Registers all the output parameters for this component.
-        /// </summary>
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddGenericParameter("Border", "B", "The Border", GH_ParamAccess.item);
-
         }
 
-        /// <summary>
-        /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             UIElement_Goo elementToAdd = null;
             double thickness = 5;
-            Color color = Color.Black;
+            SysColor color = SysColor.Black;
             double radius = 0;
 
-            if (!DA.GetData<UIElement_Goo>("UI Element", ref elementToAdd)) return;
+            if (!DA.GetData("UI Element", ref elementToAdd)) return;
             if (!DA.GetData("Border Thickness", ref thickness)) return;
             if (!DA.GetData("Border Color", ref color)) return;
             if (!DA.GetData("Corner Radius", ref radius)) return;
-            //intitalize the Border
-            Border border = new Border
-            {
-                BorderThickness = new Thickness(thickness),
-                BorderBrush = new SolidColorBrush(HUI_Util.ToMediaColor(color)),
-                CornerRadius = new CornerRadius(radius)
-            };
+            if (elementToAdd?.element == null) return;
 
             HUI_Util.removeParent(elementToAdd.element);
-            border.Child = elementToAdd.element;
 
+            // PixelLayout lets us paint a border around the child without consuming layout
+            // space ourselves; the child sits at (thickness, thickness) so it doesn't
+            // collide with the painted outline.
+            var stroke = (float)thickness;
+            var corner = (float)radius;
+            var etoColor = Color.FromArgb(color.R, color.G, color.B, color.A);
 
-            //pass out the Border object
-            DA.SetData("Border", new UIElement_Goo(border, "Border", InstanceGuid, DA.Iteration));
+            var panel = new Panel
+            {
+                Padding = new Padding((int)thickness),
+                Content = elementToAdd.element,
+            };
+
+            var drawable = new Drawable { Content = panel };
+            drawable.Paint += (s, e) =>
+            {
+                using var pen = new Pen(etoColor, stroke);
+                var rect = new RectangleF(stroke / 2f, stroke / 2f,
+                    drawable.Width - stroke, drawable.Height - stroke);
+                if (corner > 0)
+                {
+                    var path = GraphicsPath.GetRoundRect(rect, corner);
+                    e.Graphics.DrawPath(pen, path);
+                }
+                else
+                {
+                    e.Graphics.DrawRectangle(pen, rect);
+                }
+            };
+
+            DA.SetData("Border", new UIElement_Goo(drawable, "Border", InstanceGuid, DA.Iteration));
         }
 
-
-
-        /// <summary>
-        /// Provides an Icon for the component.
-        /// </summary>
         protected override System.Drawing.Bitmap Icon => Properties.Resources.CreateBorder;
 
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
         public override Guid ComponentGuid => new Guid("DFB1703A-45FD-44E6-BE50-E2A4A3C415B4");
     }
 }

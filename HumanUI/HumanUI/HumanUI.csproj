@@ -56,6 +56,13 @@
     <Compile Remove="Components\UI Output\**\*.cs" />
     <!-- Phase 1 (Tier-1 elements): each ported component re-included individually as the
          corresponding Eto reimplementation lands. -->
+    <Compile Include="Components\UI Containers\CreateStack_Component.cs" />
+    <Compile Include="Components\UI Containers\CreateSimpleGrid_Component.cs" />
+    <Compile Include="Components\UI Containers\CreateBorder_Component.cs" />
+    <Compile Include="Components\UI Containers\CreateScrollViewer_Component.cs" />
+    <Compile Include="Components\UI Containers\CreateExpander_Component.cs" />
+    <Compile Include="Components\UI Containers\CreateWrapPanel_Component.cs" />
+    <Compile Include="Components\UI Containers\CreateViewBox_Component.cs" />
     <Compile Include="Components\UI Elements\CreateLabel_Component.cs" />
     <Compile Include="Components\UI Elements\CreateTextBlock_Component.cs" />
     <Compile Include="Components\UI Elements\CreateCheckBox_Component.cs" />
@@ -84,7 +91,6 @@
     <Compile Remove="Components\UI Main\SaveElementState_Component.cs" />
     <Compile Remove="Components\UI Main\SetElementProperty_Component.cs" />
     <Compile Remove="Components\UI Main\SetWindowProperties_Component.cs" />
-    <Compile Remove="Components\UI Main\ValueListener_Component.cs" />
     <Compile Remove="Components\UI Main\WindowStatus_Component.cs" />
     <Compile Remove="Custom Types\3DViewModel.cs" />
     <Compile Remove="Custom Types\ChartModel.cs" />
