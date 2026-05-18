@@ -95,6 +95,11 @@
     <Compile Include="Components\UI Output\SetShape_Component.cs" />
     <Compile Include="Components\UI Output\Set3DView_Component.cs" />
     <Compile Remove="Deprecated\**\*.cs" />
+    <!-- Legacy hidden-Obsolete shims so historical .gh files resolve their old GUIDs
+         without forcing an upgrade chain. Must come AFTER the bulk Remove so this
+         Include wins in SDK-style item ordering. -->
+    <Compile Include="Deprecated\CreatePullDown_Component_DEPRECATED.cs" />
+    <Compile Include="Deprecated\CreatePullDown_Component_ALSO_DEPRECATED.cs" />
     <Compile Remove="Components\UI Main\AdjustElementAppearance_Component.cs" />
     <Compile Remove="Components\UI Main\AdjustElementPositioning_Component.cs" />
     <Compile Remove="Components\UI Main\CaptureWindow_Component.cs" />
