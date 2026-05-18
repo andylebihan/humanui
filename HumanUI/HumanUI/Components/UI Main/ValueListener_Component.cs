@@ -179,6 +179,14 @@ namespace HumanUI
                     dd.SelectedIndexChanged -= ExpireThis;
                     dd.SelectedIndexChanged += ExpireThis;
                     break;
+                case HUI_RhPickButton pick:
+                    pick.PickCompleted -= ExpireThis;
+                    pick.PickCompleted += ExpireThis;
+                    break;
+                case FilePicker fp:
+                    fp.PathChanged -= ExpireThis;
+                    fp.PathChanged += ExpireThis;
+                    break;
                 case Button b:
                     b.Click -= ExpireThis;
                     b.Click += ExpireThis;
@@ -199,6 +207,8 @@ namespace HumanUI
                 case RadioButton rb: rb.CheckedChanged -= ExpireThis; break;
                 case ListBox lb: lb.SelectedIndexChanged -= ExpireThis; break;
                 case DropDown dd: dd.SelectedIndexChanged -= ExpireThis; break;
+                case HUI_RhPickButton pick: pick.PickCompleted -= ExpireThis; break;
+                case FilePicker fp: fp.PathChanged -= ExpireThis; break;
                 case Button b: b.Click -= ExpireThis; break;
             }
         }

@@ -71,6 +71,7 @@
     <Compile Include="Components\UI Containers\CreateExpander_Component.cs" />
     <Compile Include="Components\UI Containers\CreateWrapPanel_Component.cs" />
     <Compile Include="Components\UI Containers\CreateViewBox_Component.cs" />
+    <Compile Include="Components\UI Containers\TabContainer_Component.cs" />
     <Compile Include="Components\UI Elements\CreateLabel_Component.cs" />
     <Compile Include="Components\UI Elements\CreateTextBlock_Component.cs" />
     <Compile Include="Components\UI Elements\CreateCheckBox_Component.cs" />
@@ -94,12 +95,31 @@
     <Compile Include="Components\UI Output\SetColorPicker_Component.cs" />
     <Compile Include="Components\UI Output\SetShape_Component.cs" />
     <Compile Include="Components\UI Output\Set3DView_Component.cs" />
+    <!-- Phase 3: specialized elements + button variants. Each include here pairs
+         with a corresponding port from WPF/MahApps to Eto.Forms. The Include
+         clauses come after the bulk Remove so SDK-style item ordering keeps them
+         in the compile set. -->
+    <Compile Include="Components\UI Elements\CreateSeparator_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateRadioButton_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateToggle_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateTooltip_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateFilePicker_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateRhinoCmdButton_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateRhinoPickButton.cs" />
+    <Compile Include="Components\UI Elements\CreateTrueOnlyButton.cs" />
+    <Compile Include="Components\UI Elements\CreateBrowser_Component.cs" />
+    <Compile Include="Components\UI Output\SetBrowser_Component.cs" />
+    <!-- Phase 5 stubs (preserve GUIDs so legacy .gh files load). -->
+    <Compile Include="Components\UI Elements\CreateRangeSlider.cs" />
+    <Compile Include="Components\UI Elements\CreateMultiShape_Component.cs" />
+    <Compile Include="Components\UI Output\SetShapes_Component.cs" />
     <Compile Remove="Deprecated\**\*.cs" />
     <!-- Legacy hidden-Obsolete shims so historical .gh files resolve their old GUIDs
          without forcing an upgrade chain. Must come AFTER the bulk Remove so this
          Include wins in SDK-style item ordering. -->
     <Compile Include="Deprecated\CreatePullDown_Component_DEPRECATED.cs" />
     <Compile Include="Deprecated\CreatePullDown_Component_ALSO_DEPRECATED.cs" />
+    <Compile Include="Deprecated\Legacy_BetaComponents_DEPRECATED.cs" />
     <Compile Remove="Components\UI Main\AdjustElementAppearance_Component.cs" />
     <Compile Remove="Components\UI Main\AdjustElementPositioning_Component.cs" />
     <Compile Remove="Components\UI Main\CaptureWindow_Component.cs" />
@@ -113,6 +133,9 @@
     <Compile Remove="Components\UI Main\SetElementProperty_Component.cs" />
     <Compile Remove="Components\UI Main\SetWindowProperties_Component.cs" />
     <Compile Remove="Components\UI Main\WindowStatus_Component.cs" />
+    <!-- Phase 3 UI Main entries (re-introduced from their Compile Remove just above). -->
+    <Compile Include="Components\UI Main\AdjustElementPositioning_Component.cs" />
+    <Compile Include="Components\UI Main\HideShowElement_Component.cs" />
     <Compile Remove="Custom Types\3DViewModel.cs" />
     <Compile Remove="Custom Types\ChartModel.cs" />
     <Compile Remove="Custom Types\ClickableShapeGrid.cs" />
@@ -127,6 +150,10 @@
     <Compile Remove="Custom Types\SliderEntryTextBox.cs" />
     <Compile Remove="Custom Types\StateSet_Goo.cs" />
     <Compile Remove="Custom Types\TrueOnlyButton.cs" />
+    <!-- Phase 3 custom types. -->
+    <Compile Include="Custom Types\FilePicker.cs" />
+    <Compile Include="Custom Types\HUI_RhPickButton.cs" />
+    <Compile Include="Custom Types\TrueOnlyButton.cs" />
   </ItemGroup>
 
   <!-- Emit a .gha alongside the .dll for Grasshopper packaging. -->

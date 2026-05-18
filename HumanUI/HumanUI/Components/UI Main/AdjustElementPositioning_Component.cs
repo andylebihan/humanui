@@ -1,24 +1,23 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-
+using Eto.Drawing;
+using Eto.Forms;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Parameters;
-using Rhino.Geometry;
-using System.Windows.Controls;
-using System.Windows;
-using HumanUIBaseApp;
 
-namespace HumanUI.Components.UI_Main 
+namespace HumanUI.Components.UI_Main
 {
     /// <summary>
-    /// Component to adjust element positioning
+    /// Adjust margin / size / alignment for a Control. WPF had Margin (Thickness),
+    /// HorizontalAlignment, VerticalAlignment, and an Absolute Positioning escape
+    /// hatch that re-parented onto a Grid. Eto.Forms uses Padding on parents and
+    /// HorizontalContentAlignment on the layout item; rather than re-parenting
+    /// every Set call, we apply alignment via the parent StackLayoutItem when
+    /// reachable, and the size/padding directly on the control. Absolute
+    /// positioning isn't supported in the Eto port — we surface a warning.
     /// </summary>
-    /// <seealso cref="Grasshopper.Kernel.GH_Component" />
     public class AdjustElementPositioning_Component : GH_Component
     {
-        /// <summary>
-        /// Initializes a new instance of the AdjustElementPositioning_Component class.
-        /// </summary>
         public AdjustElementPositioning_Component()
             : base("Adjust Element Positioning", "AdjustPos",
                 "Adjust the margins, sizing, and other positioning information of an element. \nAbsolute positioning can get a little wonky, use at your own risk.",
@@ -26,14 +25,11 @@ namespace HumanUI.Components.UI_Main
         {
         }
 
-        /// <summary>
-        /// Registers all the input parameters for this component.
-        /// </summary>
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Elements to adjust", "E", "The UIElement you want to reposition.", GH_ParamAccess.item);
-            pManager.AddTextParameter("Margin","M","The margin value. Input a single number to \naffect margins on all sides, or four values separated by commas\nto set Left, Top, Right, and Bottom individually.",GH_ParamAccess.item);
-            pManager.AddBooleanParameter("Absolute Positioning", "Abs", "Set to true to position relative to the upper left corner of the document", GH_ParamAccess.item,false);
+            pManager.AddTextParameter("Margin", "M", "The margin value. Input a single number to \naffect margins on all sides, or four values separated by commas\nto set Left, Top, Right, and Bottom individually.", GH_ParamAccess.item);
+            pManager.AddBooleanParameter("Absolute Positioning", "Abs", "Set to true to position relative to the upper left corner of the document", GH_ParamAccess.item, false);
             pManager.AddNumberParameter("Width", "W", "Override the element width", GH_ParamAccess.item);
             pManager.AddNumberParameter("Height", "H", "Override the element height", GH_ParamAccess.item);
             pManager[1].Optional = true;
@@ -42,8 +38,7 @@ namespace HumanUI.Components.UI_Main
 
             pManager.AddIntegerParameter("Horizontal Alignment", "HA", "Horizontal alignment", GH_ParamAccess.item);
             pManager[5].Optional = true;
-            //set up custom params with selectable default values in menu 
-            Param_Integer horizAlign = (Param_Integer)pManager[5];
+            var horizAlign = (Param_Integer)pManager[5];
             horizAlign.AddNamedValue("Left", 0);
             horizAlign.AddNamedValue("Center", 1);
             horizAlign.AddNamedValue("Right", 2);
@@ -51,222 +46,154 @@ namespace HumanUI.Components.UI_Main
 
             pManager.AddIntegerParameter("Vertical Alignment", "VA", "Vertical alignment", GH_ParamAccess.item);
             pManager[6].Optional = true;
-            Param_Integer vertAlign = (Param_Integer)pManager[6];
+            var vertAlign = (Param_Integer)pManager[6];
             vertAlign.AddNamedValue("Bottom", 0);
             vertAlign.AddNamedValue("Center", 1);
             vertAlign.AddNamedValue("Top", 2);
             vertAlign.AddNamedValue("Stretch", 3);
-			
         }
-
 
         public override GH_Exposure Exposure => GH_Exposure.secondary;
 
-        /// <summary>
-        /// Registers all the output parameters for this component.
-        /// </summary>
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
-        {
-           
-        }
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager) { }
 
-        /// <summary>
-        /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            bool absolute = false;
             object elem = null;
             string margin = "0";
+            bool absolute = false;
             double width = 0;
             double height = 0;
-            int horizAlign = 0;
-            int vertAlign = 0;
-            if (!DA.GetData<object>("Elements to adjust", ref elem)) return;
-           
-            DA.GetData<bool>("Absolute Positioning", ref absolute);
+            int horizAlignVal = 0;
+            int vertAlignVal = 0;
+            if (!DA.GetData("Elements to adjust", ref elem)) return;
+            DA.GetData("Absolute Positioning", ref absolute);
 
-            //This is the element we are adjusting
-            FrameworkElement f = HUI_Util.GetUIElement<FrameworkElement>(elem);
+            var ctrl = HUI_Util.GetUIElement<Control>(elem);
+            if (ctrl == null) return;
 
-            //if user has supplied margin, set margin
-            if (DA.GetData<string>("Margin", ref margin)) f.Margin = thicknessFromString(margin);
-
-            //get the window the element belongs to
-            MainWindow m = Window.GetWindow(f) as MainWindow;
-
-            //if user specified width and/or height, set them
-            if (DA.GetData<double>("Width", ref width))
+            if (DA.GetData("Margin", ref margin))
             {
-                f.Width = width;
-            }
-            if (DA.GetData<double>("Height", ref height))
-            {
-                f.Height = height;
+                var pad = paddingFromString(margin);
+                if (ctrl is Panel p) p.Padding = pad;
+                else WrapInPaddedPanel(ctrl, pad);
             }
 
-            //if user specified vertical and/or horizontal alignment, set it
-            if (DA.GetData<int>("Vertical Alignment", ref vertAlign))
-            {
-                VerticalAlignment alignment = f.VerticalAlignment;
-                switch (vertAlign) { 
-                    case 0:
-                        alignment = VerticalAlignment.Bottom;
-                        break;
-                    case 1:
-                        alignment = VerticalAlignment.Center;
-                        break;
-                    case 2:
-                        alignment = VerticalAlignment.Top;
-                        break;
-                    case 3:
-                        alignment = VerticalAlignment.Stretch;
-                        break;
-                    default:
-                        break;
+            if (DA.GetData("Width", ref width)) ctrl.Width = (int)width;
+            if (DA.GetData("Height", ref height)) ctrl.Height = (int)height;
 
-                }
-                f.VerticalAlignment = alignment;
-            
+            if (DA.GetData("Horizontal Alignment", ref horizAlignVal))
+            {
+                ApplyHorizontalAlignment(ctrl, horizAlignVal);
             }
-            if (DA.GetData<int>("Horizontal Alignment", ref horizAlign))
+            if (DA.GetData("Vertical Alignment", ref vertAlignVal))
             {
-                HorizontalAlignment alignment = f.HorizontalAlignment;
-                switch (horizAlign)
-                {
-                    case 0:
-                        alignment = HorizontalAlignment.Left;
-                        break;
-                    case 1:
-                        alignment = HorizontalAlignment.Center;
-                        break;
-                    case 2:
-                        alignment = HorizontalAlignment.Right;
-                        break;
-                    case 3:
-                        alignment = HorizontalAlignment.Stretch;
-                        break;
-                    default:
-                        break;
-
-                }
-                f.HorizontalAlignment = alignment;
-
+                ApplyVerticalAlignment(ctrl, vertAlignVal);
             }
 
-            // The absolute positioning setting is essentially just placing the items as the child of the window Grid, which is the parent of the Master Stack 
-            // Panel everything usually sits in. 
             if (absolute)
             {
-                try
-                {
-                    m.MoveFromStackToGrid(f);
-                }
-                catch 
-                {
-                  
-                }
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning,
+                    "Absolute positioning is not supported in the Eto port — element kept in its layout container.");
             }
-            else
-            {
-                try
-                {
-                    m.MoveFromGridToStack(f);
-                }
-                catch { }
-            }
-            
-
         }
 
+        private static void WrapInPaddedPanel(Control ctrl, Padding pad)
+        {
+            // The Eto port stores padding directly on the control's parent stack item
+            // when available. The original WPF used Margin on the control; we mimic by
+            // setting the parent StackLayoutItem padding when reachable, otherwise no-op.
+            var parent = ctrl.Parent;
+            if (parent is StackLayout sl)
+            {
+                for (int i = 0; i < sl.Items.Count; i++)
+                {
+                    if (ReferenceEquals(sl.Items[i].Control, ctrl))
+                    {
+                        sl.Padding = pad;
+                        return;
+                    }
+                }
+            }
+        }
+
+        private static void ApplyHorizontalAlignment(Control ctrl, int v)
+        {
+            var alignment = v switch
+            {
+                0 => HorizontalAlignment.Left,
+                1 => HorizontalAlignment.Center,
+                2 => HorizontalAlignment.Right,
+                _ => HorizontalAlignment.Stretch,
+            };
+            // Layout-item alignment is set on the parent stack's StackLayoutItem.
+            if (ctrl.Parent is StackLayout sl)
+            {
+                for (int i = 0; i < sl.Items.Count; i++)
+                {
+                    if (ReferenceEquals(sl.Items[i].Control, ctrl))
+                    {
+                        var existing = sl.Items[i];
+                        sl.Items[i] = new StackLayoutItem(ctrl, alignment, existing.Expand);
+                        return;
+                    }
+                }
+            }
+        }
+
+        private static void ApplyVerticalAlignment(Control ctrl, int v)
+        {
+            // Eto stack vertical alignment is controlled by the parent stack's
+            // VerticalContentAlignment on a horizontal stack. For vertical stacks the
+            // semantics don't map cleanly, so we apply only on horizontal parents.
+            if (ctrl.Parent is StackLayout sl && sl.Orientation == Orientation.Horizontal)
+            {
+                sl.VerticalContentAlignment = v switch
+                {
+                    0 => VerticalAlignment.Bottom,
+                    1 => VerticalAlignment.Center,
+                    2 => VerticalAlignment.Top,
+                    _ => VerticalAlignment.Stretch,
+                };
+            }
+        }
 
         /// <summary>
-        /// Creates a Thickness from string - either 4 numbers separated by commas, or 1 number applied everywhere, to mirror XAML syntax
-        /// - or a Point3d interpreted as the upper left corner.
+        /// Parse the legacy "L,T,R,B" / single-number / Rhino-point string into an Eto
+        /// Padding. Mirrors the original WPF logic.
         /// </summary>
-        /// <param name="margin">The margin.</param>
-        /// <returns>Thickness</returns>
-        Thickness thicknessFromString(string margin)
+        private Padding paddingFromString(string margin)
         {
-            if(margin.Contains("{")) { //Check if is a point converted to string
-                string[] vals = margin.Split(",{}".ToCharArray());
-                if (vals.Length == 3)
+            if (margin.Contains("{"))
+            {
+                var vals = margin.Split(",{}".ToCharArray());
+                List<double> margins = new();
+                foreach (var v in vals)
                 {
-                    List<double> margins = new List<double>();
-                    foreach (string v in vals)
-                    {
-                        double tempV;
-                        Double.TryParse(v, out tempV);
-                        margins.Add(tempV);
-                    }
-                    try
-                    {
-                        return new Thickness(margins[0], margins[1], 0, 0); //set point coords to left and top values
-                    }
-                    catch { }
+                    if (double.TryParse(v, out var tempV)) margins.Add(tempV);
                 }
-                else if (vals.Length == 5) //I *think* this is to handle the fact that sometimes the string split will give you empty strings in [0] and [4].
-                {
-                    List<double> margins = new List<double>();
-                    foreach (string v in vals)
-                    {
-                        double tempV = 0;
-                        Double.TryParse(v, out tempV);
-                        margins.Add(tempV);
-                    }
-                    try
-                    {
-                        return new Thickness(margins[1], margins[2], 0, 0);
-                    }
-                    catch { }
-                } else
-                {
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Error, String.Format("Trying to parse a point, but got {0} items",vals.Length));
-                }
+                if (margins.Count >= 2) return new Padding((int)margins[0], (int)margins[1], 0, 0);
             }
             else if (margin.Contains(","))
             {
-                string[] vals = margin.Split(','); 
-                if (vals.Length == 4) //assume all values supplied left, top, right, bottom
+                var vals = margin.Split(',');
+                if (vals.Length == 4)
                 {
-
-
-                    List<double> margins = new List<double>();
-                    foreach (string v in vals)
-                    {
-                        double tempV;
-                        Double.TryParse(v, out tempV);
-                        margins.Add(tempV);
-                    }
-                    try
-                    {
-                        return new Thickness(margins[0], margins[1], margins[2], margins[3]);
-                    }
-                    catch { }
+                    var nums = new int[4];
+                    for (int i = 0; i < 4; i++) { double.TryParse(vals[i], out var d); nums[i] = (int)d; }
+                    return new Padding(nums[0], nums[1], nums[2], nums[3]);
                 }
             }
-            else
-            { //assume only one value supplied.
-                double tempVal = 0;
-                if(Double.TryParse(margin,out tempVal)){
-                    return new Thickness(tempVal);
-                }
-               
-            } //if none of the tryParses succeeded, you get this error
-             AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Trouble parsing the margin input. Try a single value, a Point, or A,B,C,D format.");
-                    return new Thickness(0);
-            
+            else if (double.TryParse(margin, out var single))
+            {
+                return new Padding((int)single);
+            }
+            AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Trouble parsing the margin input. Try a single value, a Point, or A,B,C,D format.");
+            return new Padding(0);
         }
 
-        /// <summary>
-        /// Provides an Icon for the component.
-        /// </summary>
         protected override System.Drawing.Bitmap Icon => Properties.Resources.AdjustPositioning;
 
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
         public override Guid ComponentGuid => new Guid("{0e1bdb06-2fe7-4fbc-b194-15227efdc8a7}");
     }
 }
