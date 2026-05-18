@@ -1,9 +1,4 @@
-﻿using Grasshopper.Kernel;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Grasshopper.Kernel;
 
 namespace HumanUI
 {
@@ -12,7 +7,6 @@ namespace HumanUI
         public override GH_LoadingInstruction PriorityLoad()
         {
             Grasshopper.Instances.ComponentServer.AddCategoryIcon("Human UI", Properties.Resources.Icon_16);
-
             return GH_LoadingInstruction.Proceed;
         }
     }
