@@ -86,6 +86,8 @@ namespace HumanUI
                     case "GH_PullDown_Label":
                     case "GH_PullDown_NoLabel":
                         return FindFirst<DropDown>(stack);
+                    case "GH_Toggle_Label":
+                        return FindFirst<CheckBox>(stack);
                 }
             }
             return element;
@@ -142,7 +144,9 @@ namespace HumanUI
                 case DropDown dd:
                     return (dd.SelectedValue as ListItem)?.Text ?? string.Empty;
                 case Label l: return l.Text;
+                case HUI_RhPickButton pick: return pick.objIDs;
                 case Button b: return b.Text;
+                case FilePicker fp: return fp.Path;
                 default: return null;
             }
         }

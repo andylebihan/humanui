@@ -1,82 +1,63 @@
-﻿using Rhino.DocObjects;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Controls;
+using Eto.Forms;
+using Rhino.DocObjects;
 
 namespace HumanUI
 {
+    /// <summary>
+    /// Eto button that, when clicked, runs a Rhino object-pick prompt and stores
+    /// the picked GUIDs. PickCompleted fires whether the user accepted or
+    /// cancelled so downstream listeners (ValueListener) can refresh either way.
+    /// </summary>
     public class HUI_RhPickButton : Button
     {
-        public List<Guid> objIDs;
-        private string msg;
-        private bool allowMultiple;
-        private bool allowNone;
-        private ObjectType filter;
-        public HUI_RhPickButton(string msg, bool allowMultiple, bool allowNone, ObjectType filter)
-            : base()
+        public List<Guid> objIDs = new();
+        private readonly string msg;
+        private readonly bool allowMultiple;
+        private readonly bool allowNone;
+        private readonly ObjectType filter;
+
+        public event EventHandler PickCompleted;
+
+        public HUI_RhPickButton(string msg, bool allowMultiple, bool allowNone, ObjectType filter) : base()
         {
             this.msg = msg;
             this.allowMultiple = allowMultiple;
             this.allowNone = allowNone;
             this.filter = filter;
-            objIDs = new List<Guid>();
-            Click += PickButtonClick;
+            Click += (_, _) => RunPick();
         }
 
-        private void PickButtonClick(object sender, System.Windows.RoutedEventArgs e)
+        private void RunPick()
         {
-            getNewGeometry();
-        }
-
-        void getNewGeometry()
-        {
-
-
-
-            ObjRef[] rhObjects = new ObjRef[1];
-
-
             try
             {
-                Rhino.Commands.Result result = Rhino.Commands.Result.Cancel;
+                Rhino.Commands.Result result;
+                ObjRef[] rhObjects;
                 if (!allowMultiple)
                 {
                     result = Rhino.Input.RhinoGet.GetOneObject(msg, allowNone, filter, out ObjRef rhObject);
-                    rhObjects[0] = rhObject;
-
+                    rhObjects = new[] { rhObject };
                 }
                 else
                 {
                     result = Rhino.Input.RhinoGet.GetMultipleObjects(msg, allowNone, filter, out rhObjects);
                 }
 
-                if (result == Rhino.Commands.Result.Cancel)
+                if (result == Rhino.Commands.Result.Success && rhObjects != null)
                 {
-                    OnPickCompleted(EventArgs.Empty);
+                    objIDs = rhObjects.Where(o => o != null).Select(o => o.ObjectId).ToList();
                 }
-                else if (result == Rhino.Commands.Result.Success)
-                {
-                    objIDs = rhObjects.Select(o => o.ObjectId).ToList();
-                    OnPickCompleted(EventArgs.Empty);
-                    return;
-                }
+                PickCompleted?.Invoke(this, EventArgs.Empty);
             }
             catch
             {
-
+                // Rhino picks can throw if the doc is mid-modification; just swallow
+                // and fire PickCompleted so downstream solves see the cancel state.
+                PickCompleted?.Invoke(this, EventArgs.Empty);
             }
-
         }
-
-
-        protected virtual void OnPickCompleted(EventArgs e)
-        {
-            PickCompleted?.Invoke(this, e);
-        }
-
-        public event EventHandler PickCompleted;
     }
 }
