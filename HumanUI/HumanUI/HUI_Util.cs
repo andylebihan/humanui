@@ -69,6 +69,98 @@ namespace HumanUI
         }
 
         /// <summary>
+        /// Peel a HUI composite container (TextBox stack, Pulldown stack, Slider stack)
+        /// down to its single value-carrying control. Plain controls pass through.
+        /// </summary>
+        public static Control extractBaseElement(Control element)
+        {
+            if (element is StackLayout stack)
+            {
+                switch (stack.ID)
+                {
+                    case "GH_Slider":
+                        return findSlider(stack);
+                    case "GH_TextBox":
+                    case "GH_TextBox_NoButton":
+                        return findTextBox(stack);
+                    case "GH_PullDown_Label":
+                    case "GH_PullDown_NoLabel":
+                        return FindFirst<DropDown>(stack);
+                }
+            }
+            return element;
+        }
+
+        /// <summary>
+        /// Walk a container subtree depth-first for the first descendant of type T.
+        /// </summary>
+        public static T FindFirst<T>(Control control) where T : Control
+        {
+            if (control is T match) return match;
+            if (control is Container c)
+            {
+                foreach (var child in c.Controls)
+                {
+                    var found = FindFirst<T>(child);
+                    if (found != null) return found;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Wrap a raw .NET value in the closest matching GH_Goo so it can be appended to
+        /// a GH tree output.
+        /// </summary>
+        public static IGH_Goo GetRightType(object o)
+        {
+            switch (o)
+            {
+                case null: return null;
+                case bool b: return new GH_Boolean(b);
+                case int i: return new GH_Integer(i);
+                case double d: return new GH_Number(d);
+                case string s: return new GH_String(s);
+                case System.Drawing.Color c: return new GH_Colour(c);
+                default: return new GH_ObjectWrapper(o);
+            }
+        }
+
+        /// <summary>
+        /// Return the current "value" of a value-carrying control. Used by ValueListener.
+        /// </summary>
+        public static object GetElementValue(Control u)
+        {
+            switch (u)
+            {
+                case TextBox tb: return tb.Text;
+                case CheckBox cb: return cb.Checked ?? false;
+                case RadioButton rb: return rb.Checked;
+                case Components.UI_Elements.HUI_FloatSlider slider: return slider.FloatValue;
+                case ListBox lb:
+                    return (lb.SelectedValue as ListItem)?.Text ?? string.Empty;
+                case DropDown dd:
+                    return (dd.SelectedValue as ListItem)?.Text ?? string.Empty;
+                case Label l: return l.Text;
+                case Button b: return b.Text;
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// Return the selected index of a list-based control, or -1 for scalar controls.
+        /// </summary>
+        public static object GetElementIndex(Control u)
+        {
+            switch (u)
+            {
+                case ListBox lb: return lb.SelectedIndex;
+                case DropDown dd: return dd.SelectedIndex;
+                default: return -1;
+            }
+        }
+
+        /// <summary>
         /// Detach a control from its current parent so a new container can adopt it. This
         /// matters because the same UIElement_Goo can be passed to multiple Set / Container
         /// components in a single solve; each takeover has to undo the previous parenting.

@@ -1,9 +1,9 @@
 ---
 name: human-ui
-version: 0.9.1
+version: 0.9.2
 authors:
 - Andrew Heumann
-description: Phase 1 Eto preview. Tier-1 elements (Label, TextBlock, TextBox, Button, CheckBox, Slider, ListBox, Pulldown) plus LaunchWindow and AddElements are functional. Other components are restored in phases 2-5 of the Eto migration. For Rhino 8.
+description: Phase 2 Eto preview. Tier-1 elements + containers (Stack, SimpleGrid, ScrollViewer, Border, Expander, WrapPanel, ViewBox) + ValueListener now functional. The remaining components are restored in phases 3-5 of the Eto migration. For Rhino 8.
 url: https://discourse.mcneel.com/c/grasshopper/human-ui
 keywords:
 - guid:1b2ec1b3-ab86-44c1-81d4-176f567b3592

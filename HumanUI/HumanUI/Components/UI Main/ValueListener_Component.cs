@@ -1,588 +1,225 @@
 using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Linq;
-using Grasshopper.Kernel;
-using Rhino.Geometry;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using GH_IO.Serialization;
-using Grasshopper.Kernel.Types;
-using Grasshopper.Kernel.Data;
-using Xceed.Wpf.Toolkit;
-
 using System.Collections;
-using De.TorstenMandelkow.MetroChart;
+using System.Collections.Generic;
+using System.Linq;
+using Eto.Forms;
+using GH_IO.Serialization;
+using Grasshopper.Kernel;
+using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Parameters;
-using MahApps.Metro.Controls;
-using RangeSlider = MahApps.Metro.Controls.RangeSlider;
-using ColorPicker = Xceed.Wpf.Toolkit.ColorPicker;
-using System.Windows.Input;
+using Grasshopper.Kernel.Types;
+using HumanUI.Components.UI_Elements;
+using ToolStripDropDown = System.Windows.Forms.ToolStripDropDown;
 
 namespace HumanUI
 {
+    /// <summary>
+    /// Listens for value changes on a set of HumanUI elements and pushes those values out
+    /// as a GH tree. The Eto port carries forward the runtime fixes from the modernize-net7
+    /// branch: eventedElements is per-instance (not static, no cross-talk), and event
+    /// callbacks debounce via GH_Document.ScheduleSolution so a slider drag doesn't trigger
+    /// 60 nested solves per second.
+    /// </summary>
     public class ValueListener_Component : GH_Component, IGH_VariableParameterComponent
     {
-        /// <summary>
-        /// Initializes a new instance of the ValueListener class.
-        /// </summary>
         public ValueListener_Component()
             : base("Value Listener", "Values",
                 "This component is used to retrieve the values of UI elements from the window. By default it will automatically refresh when those values change.",
                 "Human UI", "UI Main")
         {
-            eventedElements = new List<UIElement>();
-            AddEventsEnabled = true;
             updateMessage();
         }
 
+        // Instance-level so two ValueListeners on a canvas don't trample each other's
+        // wired-element bookkeeping.
+        private readonly List<Control> eventedElements = new();
 
-        // Instance-level; making this static caused cross-talk between ValueListeners
-        // (the most-recently-constructed instance's list was used by all of them, so two
-        // listeners on the same canvas would clear each other's wired elements mid-solve).
-        private List<UIElement> eventedElements;
-
-        // Debounce window for ExpireThis. WPF events arrive far faster than Grasshopper
-        // can solve under slider drags and rapid clicks; firing ExpireSolution
-        // synchronously on every event causes nested-solve / recompute-storm symptoms
-        // (Tests E/F/G/T in the regression checklist). 50ms is below human-perceivable
-        // latency for a single solve but coalesces a typical 60fps event burst to one.
+        // Trailing-edge debounce window for the GH solver.
         private const int DebounceMs = 50;
 
+        internal bool AddEventsEnabled = true;
 
-
-        /// <summary>
-        /// Registers all the input parameters for this component.
-        /// </summary>
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Elements", "E", "UI Element(s) to listen to. This can be retrieved either directly from the component \n that generated the element, or from the output of the \"Add Elements\" component.", GH_ParamAccess.list);
             pManager.AddTextParameter("Name Filter(s)", "F", "The optional filter(s) for the elements you want to listen for.", GH_ParamAccess.list);
             pManager[1].Optional = true;
-
         }
 
-        /// <summary>
-        /// Registers all the output parameters for this component.
-        /// </summary>
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddGenericParameter("Values", "V", "The values of the listened elements", GH_ParamAccess.tree);
             pManager.AddIntegerParameter("Indices", "I", "For list-based objects (checklist, pulldown menu, etc) returns the selected index - otherwise returns -1.", GH_ParamAccess.tree);
         }
 
-        /// <summary>
-        /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            List<object> elementObjects = new List<object>();
-            List<KeyValuePair<string, UIElement_Goo>> allElements = new List<KeyValuePair<string, UIElement_Goo>>();
-            List<string> elementFilters = new List<string>();
+            var elementObjects = new List<object>();
+            var allElements = new List<KeyValuePair<string, UIElement_Goo>>();
+            var elementFilters = new List<string>();
 
+            if (!DA.GetDataList("Elements", elementObjects)) return;
+            DA.GetDataList("Name Filter(s)", elementFilters);
 
-
-
-            if (!DA.GetDataList<object>("Elements", elementObjects)) return;
-            DA.GetDataList<string>("Name Filter(s)", elementFilters);
-
-
-
-            //the elements to listen to
-            List<UIElement> filteredElements = new List<UIElement>();
-
-
-
-            //decide whether to populate the dictionary, or just populate filteredElements directly. 
-            foreach (object o in elementObjects)
+            // The Elements input can be either raw UIElement_Goo (from a Create-*
+            // component) or KeyValuePair<string, UIElement_Goo> entries wrapped in
+            // GH_ObjectWrapper (from AddElements' "Added Elements" output).
+            var filteredElements = new List<Control>();
+            foreach (var o in elementObjects)
             {
-                UIElement elem = null;
-                switch (o.GetType().ToString())
+                switch (o)
                 {
-                    case "HumanUI.UIElement_Goo":
-                        UIElement_Goo goo = o as UIElement_Goo;
-                        elem = goo.element as UIElement;
-                        filteredElements.Add(elem);
+                    case UIElement_Goo goo when goo.element != null:
+                        filteredElements.Add(goo.element);
                         break;
-                    case "Grasshopper.Kernel.Types.GH_ObjectWrapper":
-                        GH_ObjectWrapper wrapper = o as GH_ObjectWrapper;
-                        KeyValuePair<string, UIElement_Goo> kvp = (KeyValuePair<string, UIElement_Goo>)wrapper.Value;
+                    case GH_ObjectWrapper wrapper when wrapper.Value is KeyValuePair<string, UIElement_Goo> kvp:
                         allElements.Add(kvp);
                         break;
-                    default:
-                        break;
                 }
             }
 
-            if (allElements.Count > 0) //if we've been getting keyvaluepairs and need to filter
+            if (allElements.Count > 0)
             {
-
-                //create a dictionary for filtering
-                Dictionary<string, UIElement_Goo> elementDict = allElements.ToDictionary(pair => pair.Key, pair => pair.Value);
-
-
-
-                //filter the dictionary
-                foreach (string fil in elementFilters)
+                var elementDict = allElements.ToDictionary(p => p.Key, p => p.Value);
+                if (elementFilters.Count > 0)
                 {
-
-                    filteredElements.Add(elementDict[fil].element);
+                    foreach (var fil in elementFilters)
+                        if (elementDict.TryGetValue(fil, out var goo) && goo.element != null)
+                            filteredElements.Add(goo.element);
                 }
-                //if there are no filters, include all values. 
-                if (elementFilters.Count == 0)
+                else
                 {
-                    foreach (UIElement_Goo u in elementDict.Values)
-                    {
-                        filteredElements.Add(u.element);
-                    }
+                    foreach (var goo in elementDict.Values)
+                        if (goo?.element != null) filteredElements.Add(goo.element);
                 }
             }
 
-            //remove all events from previously "evented" elements
-            foreach (UIElement u in eventedElements)
-            {
-                RemoveEvents(u);
-            }
+            // Unwire previously listened elements.
+            foreach (var u in eventedElements) RemoveEvents(u);
             eventedElements.Clear();
 
+            // Peel composite containers down to their value-carrying children.
+            var leaves = filteredElements.Select(HUI_Util.extractBaseElement).Where(c => c != null).ToList();
 
-            //extract base elements
-            List<UIElement> elementsToListen = new List<UIElement>();
-            HUI_Util.extractBaseElements(filteredElements, elementsToListen);
-
-
-
-
-            //retrieve element values
-            GH_Structure<IGH_Goo> values = new GH_Structure<IGH_Goo>();
-            GH_Structure<GH_Integer> indsOut = new GH_Structure<GH_Integer>();
-            int i = 0;
-            foreach (UIElement u in elementsToListen)
+            var values = new GH_Structure<IGH_Goo>();
+            var indices = new GH_Structure<GH_Integer>();
+            for (int i = 0; i < leaves.Count; i++)
             {
-                object value = HUI_Util.GetElementValue(u);
-                object indices = HUI_Util.GetElementIndex(u);
-                IEnumerable list = null;
-                if ((value as string) == null) list = value as IEnumerable;
-                IEnumerable indList = indices as IEnumerable;
-                if (list != null)
+                var u = leaves[i];
+                var value = HUI_Util.GetElementValue(u);
+                var index = HUI_Util.GetElementIndex(u);
+                var path = new GH_Path(i);
+
+                if (value is string || value is null)
                 {
-                    foreach (object thing in list)
-                    {
-                        values.Append(HUI_Util.GetRightType(thing), new GH_Path(i));
-                    }
+                    values.Append(HUI_Util.GetRightType(value), path);
+                }
+                else if (value is IEnumerable list && !(value is string))
+                {
+                    foreach (var item in list)
+                        values.Append(HUI_Util.GetRightType(item), path);
                 }
                 else
                 {
-                    values.Append(HUI_Util.GetRightType(value), new GH_Path(i));
+                    values.Append(HUI_Util.GetRightType(value), path);
                 }
 
-                if (indList != null)
+                if (index is IEnumerable indList && !(index is string))
                 {
-                    foreach (int index in indList)
-                    {
-                        indsOut.Append(new GH_Integer(index), new GH_Path(i));
-                    }
+                    foreach (int idx in indList)
+                        indices.Append(new GH_Integer(idx), path);
                 }
                 else
                 {
-                    indsOut.Append(new GH_Integer((int)indices), new GH_Path(i));
+                    indices.Append(new GH_Integer((int)index), path);
                 }
 
-
-
-
-
-
-                //add listener events to elements 
                 if (AddEventsEnabled)
                 {
                     eventedElements.Add(u);
                     AddEvents(u);
                 }
-                i++;
             }
-
-
-
 
             DA.SetDataTree(0, values);
-            DA.SetDataTree(1, indsOut);
-
+            DA.SetDataTree(1, indices);
         }
 
-
-
-
-
-
-
-
-        void AddEvents(UIElement u)
+        // Wire change-notification handlers for the Tier-1 controls supported in the port.
+        // Add new cases here as future phases re-introduce more element types.
+        private void AddEvents(Control u)
         {
-            // Note: the SolveInstance caller adds `u` to eventedElements before invoking
-            // AddEvents, so we don't double-add here. The previous code had both adds,
-            // doubling list size every solve before the Clear() at the next solve.
-            switch (u.GetType().ToString())
+            switch (u)
             {
-                case "System.Windows.Controls.Slider":
-                    Slider s = u as Slider;
-                    s.ValueChanged -= ExpireThis;
-                    s.ValueChanged += ExpireThis;
-
-                    return;
-                case "System.Windows.Controls.Button":
-                    Button b = u as Button;
-                    b.PreviewMouseDown -= ExpireThis;
-                    b.PreviewMouseDown += ExpireThis;
-                    b.PreviewMouseUp -= ExpireThis;
-                    b.PreviewMouseUp += ExpireThis;
-                    return;
-                case "System.Windows.Controls.DataGrid":
-                    DataGrid datagrid = u as DataGrid;
-                    datagrid.SelectedCellsChanged -= ExpireThis;
-                    datagrid.SelectedCellsChanged += ExpireThis;
-                    return;
-                case "HumanUI.TrueOnlyButton":
-                    TrueOnlyButton tob = u as TrueOnlyButton;
-                    tob.PreviewMouseDown -= ExpireThis;
-                    tob.PreviewMouseDown += ExpireThis;
-                    return;
-                case "HumanUI.HUI_RhPickButton":
-                    HUI_RhPickButton rpb = u as HUI_RhPickButton;
-                    rpb.PickCompleted -= ExpireThis;
-                    rpb.PickCompleted += ExpireThis;
-                    return;
-                case "HumanUI.MDSliderElement":
-                    MDSliderElement mds = u as MDSliderElement;
-                    mds.PropertyChanged -= ExpireThis;
-                    mds.PropertyChanged += ExpireThis;
-                    return;
-                case "HumanUI.GraphMapperElement":
-                    GraphMapperElement gme = u as GraphMapperElement;
-                    gme.PropertyChanged -= ExpireThis;
-                    gme.PropertyChanged += ExpireThis;
-                    return;
-                case "HumanUI.HUI_GradientEditor":
-                    HUI_GradientEditor hge = u as HUI_GradientEditor;
-                    hge.PropertyChanged -= ExpireThis;
-                    hge.PropertyChanged += ExpireThis;
-                    return;
-                case "HumanUI.FilePicker":
-                    FilePicker fp = u as FilePicker;
-                    fp.PropertyChanged -= ExpireThis;
-                    fp.PropertyChanged += ExpireThis;
-                    return;
-                case "HumanUI.ClickableShapeGrid":
-                   ClickableShapeGrid csg = u as ClickableShapeGrid;
-                   switch (csg.clickMode)
-                   {
-                       case ClickableShapeGrid.ClickMode.ButtonMode:
-                           csg.MouseUp -= ExpireThis;
-                           csg.MouseUp += ExpireThis;
-                           csg.MouseDown -= ExpireThis;
-                           csg.MouseDown += ExpireThis;
-                           return;
-                       case ClickableShapeGrid.ClickMode.PickerMode:
-                       case ClickableShapeGrid.ClickMode.ToggleMode:
-                           csg.MouseUp -= ExpireThis;
-                           csg.MouseUp += ExpireThis;
-                           return;
-                       case ClickableShapeGrid.ClickMode.None:
-                       default:
-                           return;
-                   }
-                case "System.Windows.Controls.Label":
-                    Label l = u as Label;
-                    return;
-                case "System.Windows.Controls.ListBox":
-                    ListBox lb = u as ListBox;
-                    lb.SelectionChanged -= ExpireThis;
-                    lb.SelectionChanged += ExpireThis;
-                    return;
-                case "System.Windows.Controls.ScrollViewer":
-                    ScrollViewer sv = u as ScrollViewer;
-                    ItemsControl ic = sv.Content as ItemsControl;
-                    ((INotifyCollectionChanged)ic.Items).CollectionChanged -= ExpireThis;
-                    ((INotifyCollectionChanged)ic.Items).CollectionChanged += ExpireThis;
-                    List<bool> checkeds = new List<bool>();
-                    var cbs = from cbx in ic.Items.OfType<CheckBox>() select cbx;
-                    foreach (CheckBox chex in cbs)
-                    {
-                        chex.Checked -= ExpireThis;
-                        chex.Unchecked -= ExpireThis;
-                        chex.Checked += ExpireThis;
-                        chex.Unchecked += ExpireThis;
-                    }
-                    return;
-                case "System.Windows.Controls.ComboBox":
-                    ComboBox cb = u as ComboBox;
-                    cb.SelectionChanged -= ExpireThis;
-                    cb.SelectionChanged += ExpireThis;
-                    return;
-                case "System.Windows.Controls.TextBox":
-                    TextBox tb = u as TextBox;
-                    Panel p = tb.Parent as Panel;
-                    List<Button> btns = p.Children.OfType<Button>().ToList<Button>();
-
-                    if (tb.Tag == "enterEvent")
-                    {
-                        tb.KeyDown -= OnTextboxKeyPressed;
-                        tb.KeyDown += OnTextboxKeyPressed;
-                    }
-
-                    if (btns.Count > 0)
-                    {
-                        foreach (Button btn0 in btns)
-                        {
-                            btn0.Click -= ExpireThis;
-                            btn0.Click += ExpireThis;
-                        }
-                    }
-                    else if (tb.Tag != "enterEvent")
-                    {
-                        tb.TextChanged -= ExpireThis;
-                        tb.TextChanged += ExpireThis;
-                    }
-                    return;
-                case "Xceed.Wpf.Toolkit.ColorPicker":
-                    ColorPicker cp = u as ColorPicker;
-                    cp.SelectedColorChanged -= ExpireThis;
-                    cp.SelectedColorChanged += ExpireThis;
-                    return;
-                case "System.Windows.Controls.CheckBox":
-                    CheckBox chb = u as CheckBox;
-                    chb.Checked -= ExpireThis;
-                    chb.Unchecked -= ExpireThis;
-                    chb.Checked += ExpireThis;
-                    chb.Unchecked += ExpireThis;
-                    return;
-                case "System.Windows.Controls.RadioButton":
-                    RadioButton rb = u as RadioButton;
-                    rb.Checked -= ExpireThis;
-                    rb.Checked += ExpireThis;
-                    rb.Unchecked -= ExpireThis;
-                    rb.Unchecked += ExpireThis;
-                    return;
-                case "System.Windows.Controls.Image":
-                    return;
-                case "System.Windows.Controls.Expander":
-                    Expander exp = u as Expander;
-                    exp.Expanded -= ExpireThis;
-                    exp.Collapsed -= ExpireThis;
-                    exp.Expanded += ExpireThis;
-                    exp.Collapsed += ExpireThis;
-                    return;
-                case "System.Windows.Controls.TabControl":
-                    TabControl tc = u as TabControl;
-                    tc.SelectionChanged -= ExpireThis;
-                    tc.SelectionChanged += ExpireThis;
-                    return;
-                case "MahApps.Metro.Controls.ToggleSwitch":
-                    ToggleSwitch ts = u as ToggleSwitch;
-                    ts.Toggled -= ExpireThis;
-                    ts.Toggled += ExpireThis;
-                    return;
-                case "MahApps.Metro.Controls.RangeSlider":
-                    RangeSlider rs = u as RangeSlider;
-                    rs.RangeSelectionChanged -= ExpireThis;
-                    rs.RangeSelectionChanged += ExpireThis;
-                    return;
-                case "De.TorstenMandelkow.MetroChart.ChartBase":
-                case "De.TorstenMandelkow.MetroChart.PieChart":
-                case "De.TorstenMandelkow.MetroChart.ClusteredBarChart":
-                case "De.TorstenMandelkow.MetroChart.ClusteredColumnChart":
-                case "De.TorstenMandelkow.MetroChart.DoughnutChart":
-                case "De.TorstenMandelkow.MetroChart.RadialGaugeChart":
-                case "De.TorstenMandelkow.MetroChart.StackedBarChart":
-                case "De.TorstenMandelkow.MetroChart.StackedColumnChart":
-                    ChartBase chart = u as ChartBase;
-                    chart.MouseUp -= ExpireThis;
-                    chart.MouseUp += ExpireThis;
-                    return;
-                case "System.Windows.Controls.WebBrowser":
-                    WebBrowser wb = u as WebBrowser;
-                    wb.Navigated -= ExpireThis;
-                    wb.Navigated += ExpireThis;
-                    return;
-                default:
-                    return;
-            }
-        }
-
-        private void OnTextboxKeyPressed(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-                ExpireSolution(true);
-        }
-
-        void RemoveEvents(UIElement u)
-        {
-            switch (u.GetType().ToString())
-            {
-                case "System.Windows.Controls.Slider":
-                    Slider s = u as Slider;
-                    s.ValueChanged -= ExpireThis;
-                    return;
-                case "System.Windows.Controls.Button":
-                    Button b = u as Button;
-                    b.PreviewMouseDown -= ExpireThis;
-                    b.PreviewMouseUp -= ExpireThis;
-                    return;
-                case "System.Windows.Controls.DataGrid":
-                    DataGrid datagrid = u as DataGrid;
-                    datagrid.SelectedCellsChanged -= ExpireThis;
-                    return;
-                case "HumanUI.TrueOnlyButton":
-                    TrueOnlyButton tob = u as TrueOnlyButton;
-                    tob.PreviewMouseDown -= ExpireThis;
-                    return;
-                case "HumanUI.HUI_RhPickButton":
-                    HUI_RhPickButton rpb = u as HUI_RhPickButton;
-                    rpb.PickCompleted -= ExpireThis;
-                    return;
-                case "HumanUI.MDSliderElement":
-                    MDSliderElement mds = u as MDSliderElement;
-                    mds.PropertyChanged -= ExpireThis;
-                    return;
-                case "HumanUI.GraphMapperElement":
-                    GraphMapperElement gme = u as GraphMapperElement;
-                    gme.PropertyChanged -= ExpireThis;
-                    return;
-                case "HumanUI.HUI_GradientEditor":
-                    HUI_GradientEditor hge = u as HUI_GradientEditor;
-                    hge.PropertyChanged -= ExpireThis;
-                    return;
-                case "HumanUI.FilePicker":
-                    FilePicker fp = u as FilePicker;
-                    fp.PropertyChanged -= ExpireThis;
-                    return;
-                case "HumanUI.ClickableShapeGrid":
-                    ClickableShapeGrid csg = u as ClickableShapeGrid;
-                    switch (csg.clickMode)
-                    {
-                        case ClickableShapeGrid.ClickMode.ButtonMode:
-                            csg.MouseUp -= ExpireThis;
-                            csg.MouseDown -= ExpireThis;
-                            return;
-                        case ClickableShapeGrid.ClickMode.PickerMode:
-                        case ClickableShapeGrid.ClickMode.ToggleMode:
-                            csg.MouseUp -= ExpireThis;
-                            return;
-                     case ClickableShapeGrid.ClickMode.None:
-                        default:
-                            return;
-                    }
-                    
-                case "System.Windows.Controls.Label":
-                    Label l = u as Label;
-                    return;
-                case "System.Windows.Controls.ListBox":
-                    ListBox lb = u as ListBox;
-                    lb.SelectionChanged -= ExpireThis;
-                    return;
-                case "System.Windows.Controls.ScrollViewer":
-                    ScrollViewer sv = u as ScrollViewer;
-                    ItemsControl ic = sv.Content as ItemsControl;
-                    ((INotifyCollectionChanged)ic.Items).CollectionChanged -= ExpireThis;
-                    List<bool> checkeds = new List<bool>();
-                    var cbs = from cbx in ic.Items.OfType<CheckBox>() select cbx;
-                    foreach (CheckBox chex in cbs)
-                    {
-                        chex.Checked -= ExpireThis;
-                        chex.Unchecked -= ExpireThis;
-                    }
-                    return;
-                case "System.Windows.Controls.ComboBox":
-                    ComboBox cb = u as ComboBox;
-                    cb.SelectionChanged -= ExpireThis;
-                    return;
-                case "System.Windows.Controls.TextBox":
-                    TextBox tb = u as TextBox;
-                    Panel p = tb.Parent as Panel;
-                    List<Button> btns = p.Children.OfType<Button>().ToList<Button>();
-
-                    foreach (Button btn0 in btns)
-                    {
-                        btn0.Click -= ExpireThis;
-                    }
+                case HUI_FloatSlider slider:
+                    slider.ValueChanged -= ExpireThis;
+                    slider.ValueChanged += ExpireThis;
+                    break;
+                case TextBox tb when (tb.Tag as string) == "enterEvent":
+                    tb.KeyDown -= OnTextBoxKeyPressed;
+                    tb.KeyDown += OnTextBoxKeyPressed;
+                    break;
+                case TextBox tb:
                     tb.TextChanged -= ExpireThis;
-                    return;
-                case "Xceed.Wpf.Toolkit.ColorPicker":
-                    ColorPicker cp = u as ColorPicker;
-                    cp.SelectedColorChanged -= ExpireThis;
-                    return;
-                case "System.Windows.Controls.CheckBox":
-                    CheckBox chb = u as CheckBox;
-                    chb.Checked -= ExpireThis;
-                    chb.Unchecked -= ExpireThis;
-                    return;
-                case "System.Windows.Controls.RadioButton":
-                    RadioButton rb = u as RadioButton;
-                    rb.Checked -= ExpireThis;
-                    rb.Unchecked -= ExpireThis;
-                    return;
-                case "System.Windows.Controls.Image":
-                    return;
-                case "System.Windows.Controls.Expander":
-                    Expander exp = u as Expander;
-                    exp.Expanded -= ExpireThis;
-                    exp.Collapsed -= ExpireThis;
-                    return;
-                case "System.Windows.Controls.TabControl":
-                    TabControl tc = u as TabControl;
-                    tc.SelectionChanged -= ExpireThis;
-                    return;
-                case "MahApps.Metro.Controls.ToggleSwitch":
-                    ToggleSwitch ts = u as ToggleSwitch;
-                    ts.Toggled -= ExpireThis;
-                    return;
-                case "MahApps.Metro.Controls.RangeSlider":
-                    RangeSlider rs = u as RangeSlider;
-                    rs.RangeSelectionChanged -= ExpireThis;
-                    return;
-                case "De.TorstenMandelkow.MetroChart.ChartBase":
-                case "De.TorstenMandelkow.MetroChart.PieChart":
-                case "De.TorstenMandelkow.MetroChart.ClusteredBarChart":
-                case "De.TorstenMandelkow.MetroChart.ClusteredColumnChart":
-                case "De.TorstenMandelkow.MetroChart.DoughnutChart":
-                case "De.TorstenMandelkow.MetroChart.RadialGaugeChart":
-                case "De.TorstenMandelkow.MetroChart.StackedBarChart":
-                case "De.TorstenMandelkow.MetroChart.StackedColumnChart":
-                    ChartBase chart = u as ChartBase;
-                    chart.MouseUp -= ExpireThis;
-                    return;
-               
-                default:
-                    return;
+                    tb.TextChanged += ExpireThis;
+                    break;
+                case CheckBox cb:
+                    cb.CheckedChanged -= ExpireThis;
+                    cb.CheckedChanged += ExpireThis;
+                    break;
+                case RadioButton rb:
+                    rb.CheckedChanged -= ExpireThis;
+                    rb.CheckedChanged += ExpireThis;
+                    break;
+                case ListBox lb:
+                    lb.SelectedIndexChanged -= ExpireThis;
+                    lb.SelectedIndexChanged += ExpireThis;
+                    break;
+                case DropDown dd:
+                    dd.SelectedIndexChanged -= ExpireThis;
+                    dd.SelectedIndexChanged += ExpireThis;
+                    break;
+                case Button b:
+                    b.Click -= ExpireThis;
+                    b.Click += ExpireThis;
+                    break;
             }
         }
 
-
-
-        void ExpireThis(object sender, EventArgs e)
+        private void RemoveEvents(Control u)
         {
-            // Mark this component expired but defer the actual solve. GH_Document's
-            // ScheduleSolution coalesces repeated calls within the delay window so a
-            // slider drag firing 60 ValueChanged events / sec becomes ~20 solves / sec
-            // worst case (and in practice one solve once the drag stops), instead of
-            // 60 nested re-entrant ExpireSolution(true) calls on the WPF thread.
+            switch (u)
+            {
+                case HUI_FloatSlider slider: slider.ValueChanged -= ExpireThis; break;
+                case TextBox tb:
+                    tb.TextChanged -= ExpireThis;
+                    tb.KeyDown -= OnTextBoxKeyPressed;
+                    break;
+                case CheckBox cb: cb.CheckedChanged -= ExpireThis; break;
+                case RadioButton rb: rb.CheckedChanged -= ExpireThis; break;
+                case ListBox lb: lb.SelectedIndexChanged -= ExpireThis; break;
+                case DropDown dd: dd.SelectedIndexChanged -= ExpireThis; break;
+                case Button b: b.Click -= ExpireThis; break;
+            }
+        }
+
+        private void OnTextBoxKeyPressed(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Keys.Enter) ExpireThis(sender, EventArgs.Empty);
+        }
+
+        private void ExpireThis(object sender, EventArgs e)
+        {
+            // Mark expired now, defer the actual solve. ScheduleSolution coalesces repeated
+            // calls within DebounceMs so a slider drag becomes ~one solve when the user
+            // pauses, not 60 nested re-entrant ExpireSolution(true) calls.
             ExpireSolution(false);
             OnPingDocument()?.ScheduleSolution(DebounceMs);
         }
 
-
-        /// <summary>
-        /// Provides an Icon for the component.
-        /// </summary>
         protected override System.Drawing.Bitmap Icon => Properties.Resources.ValueListener;
 
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
         public override Guid ComponentGuid => new Guid("{D6BA0398-70A7-46E7-A068-274486EB0ACB}");
-
 
         internal void updateMessage()
         {
@@ -594,6 +231,7 @@ namespace HumanUI
             writer.SetBoolean("SomeProperty", AddEventsEnabled);
             return base.Write(writer);
         }
+
         public override bool Read(GH_IReader reader)
         {
             AddEventsEnabled = false;
@@ -602,57 +240,44 @@ namespace HumanUI
             return base.Read(reader);
         }
 
-        protected override void AppendAdditionalComponentMenuItems(System.Windows.Forms.ToolStripDropDown menu)
+        protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
         {
-            System.Windows.Forms.ToolStripMenuItem AddEventsMenuItem = GH_DocumentObject.Menu_AppendItem(menu, "Live Update", new EventHandler(this.Menu_AddEventsClicked), true, AddEventsEnabled);
-            AddEventsMenuItem.ToolTipText = "When checked, the component will automatically update when UI element values change in the window.";
+            GH_DocumentObject.Menu_AppendItem(menu, "Live Update", Menu_AddEventsClicked, true, AddEventsEnabled)
+                .ToolTipText = "When checked, the component will automatically update when UI element values change in the window.";
         }
-        public void Menu_AddEventsClicked(object sender, System.EventArgs e)
+
+        public void Menu_AddEventsClicked(object sender, EventArgs e)
         {
-            this.RecordUndoEvent("Add Events");
-            this.AddEventsEnabled = !this.AddEventsEnabled;
+            RecordUndoEvent("Add Events");
+            AddEventsEnabled = !AddEventsEnabled;
             updateMessage();
-            this.ExpireSolution(true);
+            ExpireSolution(true);
         }
 
-
-        internal bool AddEventsEnabled = true;
-
-        //All the variable parameter stuff so that we can have an input for manually triggering an update w/o dispatch gymnastics.
+        // Optional manual-trigger input slot.
 
         public bool CanInsertParameter(GH_ParameterSide side, int index)
-        {
-            if (side == GH_ParameterSide.Input && index == 2 && Params.Input.Count==2) return true;
-            return false;
-        }
+            => side == GH_ParameterSide.Input && index == 2 && Params.Input.Count == 2;
 
         public bool CanRemoveParameter(GH_ParameterSide side, int index)
-        {
-            if (side == GH_ParameterSide.Input && index == 2 && Params.Input.Count == 3) return true;
-            return false;
-        }
+            => side == GH_ParameterSide.Input && index == 2 && Params.Input.Count == 3;
 
         public IGH_Param CreateParameter(GH_ParameterSide side, int index)
         {
-            Param_Boolean manualTrigger = new Param_Boolean();
-            manualTrigger.NickName = "T";
-            manualTrigger.Name = "Trigger";
-            manualTrigger.Description = "An optional input parameter to force trigger an update (useful when the component is in manual mode)";
-            manualTrigger.Optional = true;
-            Params.RegisterInputParam(manualTrigger, index);
-            return manualTrigger;
+            var trigger = new Param_Boolean
+            {
+                NickName = "T",
+                Name = "Trigger",
+                Description = "An optional input parameter to force trigger an update (useful when the component is in manual mode)",
+                Optional = true,
+            };
+            Params.RegisterInputParam(trigger, index);
+            return trigger;
         }
 
         public bool DestroyParameter(GH_ParameterSide side, int index)
-        {
-            return side == GH_ParameterSide.Input && index == 2;
+            => side == GH_ParameterSide.Input && index == 2;
 
-
-        }
-
-        public void VariableParameterMaintenance()
-        {
-            return;
-        }
+        public void VariableParameterMaintenance() { }
     }
 }
