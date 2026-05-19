@@ -1,15 +1,14 @@
 using System;
-using Eto.Forms;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 
 namespace HumanUI.Components.UI_Elements
 {
     /// <summary>
-    /// Phase 3 stub. Eto.Forms has no native dual-handle range slider; the real
-    /// port is Phase 4 (composite of two synced Sliders with shared painted
-    /// track). Until then we emit a Label so .gh files that reference this
-    /// component still load.
+    /// Creates a two-thumb range slider over the given Interval. The Eto port
+    /// builds the control out of two synchronized HUI_FloatSliders (see
+    /// HUI_RangeSlider) because Eto.Forms doesn't ship a native dual-handle
+    /// slider. ValueListener returns the current range as an Interval.
     /// </summary>
     public class CreateRangeSlider : GH_Component
     {
@@ -38,13 +37,8 @@ namespace HumanUI.Components.UI_Elements
             if (!DA.GetData("Slider Range", ref sliderRange)) return;
             if (!DA.GetData("Starting Range", ref startingRange)) return;
 
-            AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                "Range Slider is a Phase 4 stub in this Eto preview.");
-            var placeholder = new Label
-            {
-                Text = $"[Range Slider stub: {startingRange.Min:0.##} – {startingRange.Max:0.##}]",
-            };
-            DA.SetData("Range Slider", new UIElement_Goo(placeholder, "Range Slider", InstanceGuid, DA.Iteration));
+            var rs = new HUI_RangeSlider(sliderRange.Min, sliderRange.Max, startingRange.Min, startingRange.Max);
+            DA.SetData("Range Slider", new UIElement_Goo(rs, "Range Slider", InstanceGuid, DA.Iteration));
         }
 
         protected override System.Drawing.Bitmap Icon => Properties.Resources.CreateRangeSlider;

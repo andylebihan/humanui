@@ -56,41 +56,11 @@ namespace HumanUI.Deprecated
         public override Guid ComponentGuid => new Guid("{c8d203fe-7e84-416a-b93e-d1bd746f3f66}");
     }
 
-    /// <summary>Beta 0.6.x Create Checklist. Phase 4 port pending.</summary>
-    public class CreateChecklist_Beta_DEPRECATED : GH_Component
-    {
-        public CreateChecklist_Beta_DEPRECATED()
-            : base("Create Checklist", "Checklist", "Creates a checklist of items.", "Human UI", "UI Elements") { }
-
-        protected override void RegisterInputParams(GH_InputParamManager pManager)
-        {
-            pManager.AddTextParameter("Checklist Items", "L", "The initial list of options to display in the checklist.", GH_ParamAccess.list);
-            pManager.AddBooleanParameter("Selected", "S", "The initial selection state of each item.", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Height", "H", "Optional checklist box height in pixels.", GH_ParamAccess.item);
-            pManager[2].Optional = true;
-        }
-
-        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
-        {
-            pManager.AddGenericParameter("Checklist", "CL", "The checklist object", GH_ParamAccess.item);
-        }
-
-        public override GH_Exposure Exposure => GH_Exposure.hidden;
-        public override bool Obsolete => true;
-
-        protected override void SolveInstance(IGH_DataAccess DA)
-        {
-            var items = new List<string>();
-            var selected = new List<bool>();
-            DA.GetDataList("Checklist Items", items);
-            DA.GetDataList("Selected", selected);
-            DA.SetData("Checklist", LegacyStubHelpers.PlaceholderGoo("Checklist", InstanceGuid, DA.Iteration, $"{items.Count} item(s) — Phase 4 stub"));
-        }
-
-        public override Guid ComponentGuid => new Guid("{6e21dbe5-ecb8-4530-8a22-7cd713cf40d5}");
-    }
-
-    /// <summary>Beta 0.6.x "Create Grid" (3-input variant). Phase 4 port pending.</summary>
+    /// <summary>
+    /// Beta 0.6.x Create Grid (3-input variant). Stays as a hidden stub so old
+    /// .gh files load; the current CreateGrid_Component takes over the
+    /// `b618569a` GUID for new placements.
+    /// </summary>
     public class CreateGrid_Beta_DEPRECATED : GH_Component
     {
         public CreateGrid_Beta_DEPRECATED()
@@ -113,49 +83,13 @@ namespace HumanUI.Deprecated
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            DA.SetData("Grid", LegacyStubHelpers.PlaceholderGoo("Grid", InstanceGuid, DA.Iteration, "Phase 4 stub"));
+            DA.SetData("Grid", LegacyStubHelpers.PlaceholderGoo("Grid", InstanceGuid, DA.Iteration, "deprecated"));
         }
 
         public override Guid ComponentGuid => new Guid("{1e68a9a8-c28d-4799-854c-337dc4018917}");
     }
 
-    /// <summary>Later "Create Grid" with row/column definitions. Phase 4 port pending.</summary>
-    public class CreateGrid_Full_DEPRECATED : GH_Component
-    {
-        public CreateGrid_Full_DEPRECATED()
-            : base("Create Grid", "Grid", "Creates a grid layout for UI elements.", "Human UI", "UI Containers") { }
-
-        protected override void RegisterInputParams(GH_InputParamManager pManager)
-        {
-            pManager.AddGenericParameter("UI Elements", "E", "The UI elements to add to the grid.", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Width", "W", "The width of the grid.", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Height", "H", "The height of the grid.", GH_ParamAccess.item);
-            pManager.AddTextParameter("Row Definitions", "RD", "The row definitions of the grid.", GH_ParamAccess.list);
-            pManager.AddTextParameter("Column Definitions", "CD", "The column definitions of the grid.", GH_ParamAccess.list);
-            pManager.AddIntegerParameter("Element Row", "ER", "The row for each element.", GH_ParamAccess.list);
-            pManager.AddIntegerParameter("Element Column", "EC", "The column for each element.", GH_ParamAccess.list);
-            pManager.AddIntegerParameter("Element Row Span", "ERS", "The row span for each element.", GH_ParamAccess.list);
-            pManager.AddIntegerParameter("Element Column Span", "ECS", "The column span for each element.", GH_ParamAccess.list);
-            for (int i = 1; i < pManager.ParamCount; i++) pManager[i].Optional = true;
-        }
-
-        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
-        {
-            pManager.AddGenericParameter("Grid", "S", "The created grid", GH_ParamAccess.item);
-        }
-
-        public override GH_Exposure Exposure => GH_Exposure.hidden;
-        public override bool Obsolete => true;
-
-        protected override void SolveInstance(IGH_DataAccess DA)
-        {
-            DA.SetData("Grid", LegacyStubHelpers.PlaceholderGoo("Grid", InstanceGuid, DA.Iteration, "Phase 4 stub"));
-        }
-
-        public override Guid ComponentGuid => new Guid("{b618569a-868d-4a88-a035-faa1416a841f}");
-    }
-
-    /// <summary>
+/// <summary>
     /// Tabbed View Beta variant (Names + Text Size + Tab N variable params). Same
     /// variable-parameter shape as the current TabContainer so .gh files saved
     /// against this GUID with multiple Tab 1/Tab 2 inputs deserialize cleanly.

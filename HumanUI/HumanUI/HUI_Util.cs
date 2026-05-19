@@ -139,6 +139,7 @@ namespace HumanUI
                 case CheckBox cb: return cb.Checked ?? false;
                 case RadioButton rb: return rb.Checked;
                 case Components.UI_Elements.HUI_FloatSlider slider: return slider.FloatValue;
+                case HUI_RangeSlider range: return new[] { range.LowerValue, range.UpperValue };
                 case ListBox lb:
                     return (lb.SelectedValue as ListItem)?.Text ?? string.Empty;
                 case DropDown dd:
@@ -147,8 +148,37 @@ namespace HumanUI
                 case HUI_RhPickButton pick: return pick.objIDs;
                 case Button b: return b.Text;
                 case FilePicker fp: return fp.Path;
+                case Scrollable s when s.ID == "GH_Checklist": return CollectChecklistValues(s);
+                case GridView gv: return CollectGridViewSelection(gv);
                 default: return null;
             }
+        }
+
+        /// <summary>
+        /// Walk a checklist scrollable and return a parallel list of the current
+        /// checked states (in declaration order). ValueListener flattens this
+        /// into the output tree.
+        /// </summary>
+        private static List<bool> CollectChecklistValues(Scrollable s)
+        {
+            var values = new List<bool>();
+            void walk(Control c)
+            {
+                if (c is CheckBox cb) values.Add(cb.Checked ?? false);
+                else if (c is Container cont) foreach (var ch in cont.Controls) walk(ch);
+            }
+            walk(s);
+            return values;
+        }
+
+        private static List<string> CollectGridViewSelection(GridView gv)
+        {
+            var values = new List<string>();
+            if (gv.SelectedItem is string[] row)
+            {
+                values.AddRange(row);
+            }
+            return values;
         }
 
         /// <summary>
@@ -160,6 +190,7 @@ namespace HumanUI
             {
                 case ListBox lb: return lb.SelectedIndex;
                 case DropDown dd: return dd.SelectedIndex;
+                case GridView gv: return gv.SelectedRow;
                 default: return -1;
             }
         }
