@@ -109,8 +109,17 @@
     <Compile Include="Components\UI Elements\CreateTrueOnlyButton.cs" />
     <Compile Include="Components\UI Elements\CreateBrowser_Component.cs" />
     <Compile Include="Components\UI Output\SetBrowser_Component.cs" />
-    <!-- Phase 5 stubs (preserve GUIDs so legacy .gh files load). -->
+    <!-- Phase 4: real ports for Checklist, Grid, Range Slider, DataTable, Markdown Viewer. -->
+    <Compile Include="Components\UI Containers\CreateGrid_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateCheckList_Component.cs" />
     <Compile Include="Components\UI Elements\CreateRangeSlider.cs" />
+    <Compile Include="Components\UI Elements\CreateDataTable_Component.cs" />
+    <Compile Include="Components\UI Elements\Create_MarkdownViewer_Component.cs" />
+    <Compile Include="Components\UI Output\SetChecklist_Component.cs" />
+    <Compile Include="Components\UI Output\SetDataTable_Component.cs" />
+    <!-- Custom Types\HUI_RangeSlider.cs auto-included by SDK (not in any Remove). -->
+    <!-- Custom Types\MarkdownViewer.cs is explicitly Removed below then re-included; see Custom Types include block. -->
+    <!-- Phase 5 stubs (preserve GUIDs so legacy .gh files load). -->
     <Compile Include="Components\UI Elements\CreateMultiShape_Component.cs" />
     <Compile Include="Components\UI Output\SetShapes_Component.cs" />
     <Compile Remove="Deprecated\**\*.cs" />
@@ -154,6 +163,8 @@
     <Compile Include="Custom Types\FilePicker.cs" />
     <Compile Include="Custom Types\HUI_RhPickButton.cs" />
     <Compile Include="Custom Types\TrueOnlyButton.cs" />
+    <!-- Phase 4 custom types. -->
+    <Compile Include="Custom Types\MarkdownViewer.cs" />
   </ItemGroup>
 
   <!-- Emit a .gha alongside the .dll for Grasshopper packaging. -->

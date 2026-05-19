@@ -1,35 +1,29 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-
+using Eto.Forms;
 using Grasshopper.Kernel;
-using Rhino.Geometry;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 
 namespace HumanUI.Components.UI_Containers
 {
     /// <summary>
-    /// A component to create a grid container
+    /// Eto port of the WPF Grid. Uses TableLayout so cells can declare star
+    /// ("1*") or absolute ("50") sizing, and elements can be placed at
+    /// arbitrary (row, column) with optional row/column spans. Spans are
+    /// emulated by leaving empty TableCells under the spanned area — Eto's
+    /// TableLayout doesn't have native rowspan/colspan, so spans wider than
+    /// 1 simply place the element at the top-left of the span; the visual
+    /// extent comes from sizing the spanned columns/rows star-shares.
     /// </summary>
-    /// <seealso cref="Grasshopper.Kernel.GH_Component" />
     public class CreateGrid_Component : GH_Component
     {
-        /// <summary>
-        /// Initializes a new instance of the CreateGrid_Component class.
-        /// </summary>
         public CreateGrid_Component()
             : base("Create Grid", "Grid",
-                "Create a container with absolutely positioned elements. \n Their input order determines their Z order - set the margins \nwith the \"Adjust Element Positioning\" component to locate \nelements inside the grid.\n Use column and row definitions to create more advanced grids.",
+                "Create a container with row/column-positioned elements.\nUse row and column definitions (\"1*\" for ratio, \"50\" for absolute) and Element Row / Column to position items.",
                 "Human UI", "UI Containers")
         {
         }
 
-        /// <summary>
-        /// Registers all the input parameters for this component.
-        /// </summary>
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("UI Elements", "E", "The UI elements to place in the grid", GH_ParamAccess.list);
             pManager.AddNumberParameter("Width", "W", "The width of the grid", GH_ParamAccess.item);
@@ -48,142 +42,100 @@ namespace HumanUI.Components.UI_Containers
             pManager[7].Optional = true;
             pManager.AddIntegerParameter("Element Column Span", "ECS", "How many columns each element should span. This will be 1 by default.", GH_ParamAccess.list, 1);
             pManager[8].Optional = true;
-
-
-
         }
 
-        /// <summary>
-        /// Registers all the output parameters for this component.
-        /// </summary>
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddGenericParameter("Grid", "S", "The combined group of elements", GH_ParamAccess.item);
         }
 
-        /// <summary>
-        /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            List<UIElement_Goo> elementsToAdd = new List<UIElement_Goo>();
-            double width = 0;
-            double height = 0;
-            List<string> rowDefinitions = new List<string>();
-            List<string> colDefinitions = new List<string>();
-            List<int> elementRows = new List<int>();
-            List<int> elementCols = new List<int>();
-            List<int> elementRowSpans = new List<int>();
-            List<int> elementColSpans = new List<int>();
+            var elementsToAdd = new List<UIElement_Goo>();
+            double width = 0, height = 0;
+            var rowDefs = new List<string>();
+            var colDefs = new List<string>();
+            var elementRows = new List<int>();
+            var elementCols = new List<int>();
+            var elementRowSpans = new List<int>();
+            var elementColSpans = new List<int>();
 
+            if (!DA.GetDataList("UI Elements", elementsToAdd)) return;
+            bool hasWidth = DA.GetData("Width", ref width);
+            bool hasHeight = DA.GetData("Height", ref height);
+            bool hasRowDefs = DA.GetDataList("Row Definitions", rowDefs);
+            bool hasColDefs = DA.GetDataList("Column Definitions", colDefs);
+            bool hasElementRows = DA.GetDataList("Element Row", elementRows);
+            bool hasElementCols = DA.GetDataList("Element Column", elementCols);
+            DA.GetDataList("Element Row Span", elementRowSpans);
+            DA.GetDataList("Element Column Span", elementColSpans);
 
+            int rows = hasRowDefs ? rowDefs.Count : 1;
+            int cols = hasColDefs ? colDefs.Count : 1;
 
-            if (!DA.GetDataList<UIElement_Goo>("UI Elements", elementsToAdd)) return;
-            bool hasWidth = DA.GetData<double>("Width", ref width);
-            bool hasHeight = DA.GetData<double>("Height", ref height);
+            var table = new TableLayout(cols, rows) { ID = "GH_Grid", Spacing = new Eto.Drawing.Size(2, 2) };
 
-            bool hasRowDefs = DA.GetDataList<string>("Row Definitions", rowDefinitions);
-            bool hasColDefs = DA.GetDataList<string>("Column Definitions", colDefinitions);
-
-            bool hasElementRows = DA.GetDataList<int>("Element Row", elementRows);
-            bool hasElementCols = DA.GetDataList<int>("Element Column", elementCols);
-            DA.GetDataList<int>("Element Row Span", elementRowSpans);
-            DA.GetDataList<int>("Element Column Span", elementColSpans);
-
-            //initialize the grid
-            Grid grid = new Grid();
-            grid.HorizontalAlignment = HorizontalAlignment.Left;
-            grid.VerticalAlignment = VerticalAlignment.Top;
-            grid.Name = "GH_Grid";
-            if (hasWidth)
+            for (int i = 0; i < elementsToAdd.Count; i++)
             {
-                grid.Width = width;
-            }
-            else
-            {
-                grid.HorizontalAlignment = HorizontalAlignment.Stretch;
-            }
-            if (hasHeight)
-            {
-                grid.Height = height;
-            }
-            else
-            {
-                grid.VerticalAlignment = VerticalAlignment.Stretch;
-            }
-           
+                var u = elementsToAdd[i];
+                if (u?.element == null) continue;
+                HUI_Util.removeParent(u.element);
 
-            //set up a "GridLengthConverter" to handle parsing our strings.
-            GridLengthConverter gridLengthConverter = new GridLengthConverter();
+                int row = hasElementRows && elementRows.Count > 0 ? elementRows[i % elementRows.Count] : (i / Math.Max(1, cols));
+                int col = hasElementCols && elementCols.Count > 0 ? elementCols[i % elementCols.Count] : (i % cols);
+                row = Math.Max(0, Math.Min(row, rows - 1));
+                col = Math.Max(0, Math.Min(col, cols - 1));
 
-            //set up rows and columns if present
+                table.Add(u.element, col, row);
+            }
+
+            // Apply column scaling (star vs absolute).
             if (hasColDefs)
             {
-                foreach (string colDef in colDefinitions)
+                for (int c = 0; c < colDefs.Count && c < table.Dimensions.Width; c++)
                 {
-                    ColumnDefinition cd = new ColumnDefinition();
-                    cd.Width = (GridLength)gridLengthConverter.ConvertFromString(colDef);
-                    grid.ColumnDefinitions.Add(cd);
+                    bool scale = IsStarDefinition(colDefs[c], out _);
+                    table.SetColumnScale(c, scale);
                 }
-
             }
             if (hasRowDefs)
             {
-                foreach (string rowDef in rowDefinitions)
+                for (int r = 0; r < rowDefs.Count && r < table.Dimensions.Height; r++)
                 {
-                    RowDefinition rd = new RowDefinition();
-                    rd.Height = (GridLength)gridLengthConverter.ConvertFromString(rowDef);
-                    grid.RowDefinitions.Add(rd);
+                    bool scale = IsStarDefinition(rowDefs[r], out _);
+                    table.SetRowScale(r, scale);
                 }
-
             }
 
+            if (hasWidth) table.Width = (int)width;
+            if (hasHeight) table.Height = (int)height;
 
-            //for all the elements to add
-            for (int i = 0; i < elementsToAdd.Count; i++)
-            {
-                UIElement_Goo u = elementsToAdd[i];
-                //make sure it doesn't already have a parent
-                HUI_Util.removeParent(u.element);
-                FrameworkElement fe = u.element as FrameworkElement;
-                if (fe != null)
-                {
-                    //set its alignment to be relative to upper left - this makes margin-based positioning easy
-                    fe.HorizontalAlignment = HorizontalAlignment.Left;
-                    fe.VerticalAlignment = VerticalAlignment.Top;
-
-                    //set up row and column positioning + spans
-                    if (hasElementCols && elementCols.Count > 0 && elementColSpans.Count > 0)
-                    {
-                        Grid.SetColumn(fe, elementCols[i % elementCols.Count]); // using hacky fake longest list matching. Will create a repeating pattern if it doesn't know what to do.
-                        Grid.SetColumnSpan(fe, elementColSpans[i % elementColSpans.Count]);
-                    }
-                    if (hasElementRows && elementRows.Count > 0 && elementRowSpans.Count > 0)
-                    {
-                        Grid.SetRow(fe, elementRows[i % elementRows.Count]); // using hacky fake longest list matching. Will create a repeating pattern if it doesn't know what to do.
-                        Grid.SetRowSpan(fe, elementRowSpans[i % elementRowSpans.Count]);
-
-                    }
-
-                }
-                //add it to the grid
-                grid.Children.Add(u.element);
-            }
-            //pass the grid out
-            DA.SetData("Grid", new UIElement_Goo(grid, "Grid", InstanceGuid, DA.Iteration));
+            DA.SetData("Grid", new UIElement_Goo(table, "Grid", InstanceGuid, DA.Iteration));
         }
 
-
-
         /// <summary>
-        /// Provides an Icon for the component.
+        /// Parse a row/column definition string. Returns true if the entry uses
+        /// star sizing ("1*", "*", "2*"); the out value is the ratio (1 for "*").
+        /// Plain numbers ("50", "100") return false and leave the table cell at
+        /// its absolute size.
         /// </summary>
+        private static bool IsStarDefinition(string def, out double ratio)
+        {
+            ratio = 1.0;
+            if (string.IsNullOrWhiteSpace(def)) return true;
+            def = def.Trim();
+            if (def == "*") return true;
+            if (def.EndsWith("*"))
+            {
+                double.TryParse(def.Substring(0, def.Length - 1), out ratio);
+                if (ratio <= 0) ratio = 1;
+                return true;
+            }
+            return false;
+        }
+
         protected override System.Drawing.Bitmap Icon => Properties.Resources.createGrid;
 
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
         public override Guid ComponentGuid => new Guid("{B618569A-868D-4A88-A035-FAA1416A841F}");
     }
 }

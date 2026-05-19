@@ -155,6 +155,17 @@ namespace HumanUI
                     slider.ValueChanged -= ExpireThis;
                     slider.ValueChanged += ExpireThis;
                     break;
+                case HUI_RangeSlider range:
+                    range.RangeChanged -= ExpireThis;
+                    range.RangeChanged += ExpireThis;
+                    break;
+                case GridView gv:
+                    gv.SelectionChanged -= ExpireThis;
+                    gv.SelectionChanged += ExpireThis;
+                    break;
+                case Scrollable s when s.ID == "GH_Checklist":
+                    WireChecklistEvents(s, true);
+                    break;
                 case TextBox tb when (tb.Tag as string) == "enterEvent":
                     tb.KeyDown -= OnTextBoxKeyPressed;
                     tb.KeyDown += OnTextBoxKeyPressed;
@@ -199,6 +210,9 @@ namespace HumanUI
             switch (u)
             {
                 case HUI_FloatSlider slider: slider.ValueChanged -= ExpireThis; break;
+                case HUI_RangeSlider range: range.RangeChanged -= ExpireThis; break;
+                case GridView gv: gv.SelectionChanged -= ExpireThis; break;
+                case Scrollable s when s.ID == "GH_Checklist": WireChecklistEvents(s, false); break;
                 case TextBox tb:
                     tb.TextChanged -= ExpireThis;
                     tb.KeyDown -= OnTextBoxKeyPressed;
@@ -211,6 +225,25 @@ namespace HumanUI
                 case FilePicker fp: fp.PathChanged -= ExpireThis; break;
                 case Button b: b.Click -= ExpireThis; break;
             }
+        }
+
+        /// <summary>
+        /// Walk a checklist scrollable's CheckBox children and toggle subscription
+        /// to CheckedChanged. Centralized so AddEvents and RemoveEvents stay in
+        /// sync — they need to attach/detach the same handler for every CheckBox.
+        /// </summary>
+        private void WireChecklistEvents(Scrollable s, bool attach)
+        {
+            void walk(Control c)
+            {
+                if (c is CheckBox cb)
+                {
+                    cb.CheckedChanged -= ExpireThis;
+                    if (attach) cb.CheckedChanged += ExpireThis;
+                }
+                else if (c is Container cont) foreach (var ch in cont.Controls) walk(ch);
+            }
+            walk(s);
         }
 
         private void OnTextBoxKeyPressed(object sender, KeyEventArgs e)
