@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net7.0-windows</TargetFramework>
+    <TargetFrameworks>net7.0-windows;net7.0</TargetFrameworks>
     <RootNamespace>HumanUIBaseApp</RootNamespace>
     <AssemblyName>HumanUIBaseApp</AssemblyName>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -9,7 +9,10 @@
     <Configurations>Debug;Release</Configurations>
     <Nullable>disable</Nullable>
     <LangVersion>latest</LangVersion>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Multi-target requires per-TFM output folders so the two builds don't
+         clobber each other. AppendTargetFrameworkToOutputPath is left at the
+         default (true), so outputs land at bin/Release/net7.0/ and
+         bin/Release/net7.0-windows/. -->
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <NoWarn>$(NoWarn);NU1701</NoWarn>

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+#if HUI_WINDOWS
 using System.Windows.Forms;
+#endif
 using Grasshopper.Kernel;
 using GH_IO.Serialization;
 using HumanUIBaseApp;
@@ -71,10 +73,12 @@ namespace HumanUI.Components.UI_Main
             Message = DoVLChecking ? "" : "Fast Mode";
         }
 
+#if HUI_WINDOWS
         protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
         {
             GH_DocumentObject.Menu_AppendItem(menu, "Disable Flow Loop Checking (Fast Mode)", FastModeClicked, true, !DoVLChecking);
         }
+#endif
 
         private void FastModeClicked(object sender, EventArgs e)
         {

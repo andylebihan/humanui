@@ -27,10 +27,14 @@ namespace HumanUI
             {
                 case UIElement_Goo goo:
                     if (goo.element is T direct) return direct;
+#if HUI_WINDOWS
                     if (goo.element is HUI_WpfHost host && host.WpfElement is T wpf) return wpf;
+#endif
                     return null;
                 case GH_ObjectWrapper wrapper: return wrapper.Value as T;
+#if HUI_WINDOWS
                 case HUI_WpfHost h when h.WpfElement is T w: return w;
+#endif
                 default: return o as T;
             }
         }
@@ -177,6 +181,7 @@ namespace HumanUI
                 case TabControl tabs:
                     return tabs.SelectedPage?.Text ?? string.Empty;
                 case Expander exp: return exp.Expanded;
+#if HUI_WINDOWS
                 // HUI_WpfHost wraps a WPF FrameworkElement for the Hard 5
                 // (3D View, Charts, GraphMapper, GradientEditor,
                 // ClickableShapeGrid). Returning the inner element (rather
@@ -184,6 +189,7 @@ namespace HumanUI
                 // unwrap and avoids the silent-null cascade that triggered the
                 // 3D-View-transparency bug when ColorPicker was missing here.
                 case HUI_WpfHost host: return host.WpfElement;
+#endif
                 default: return null;
             }
         }
@@ -316,12 +322,16 @@ namespace HumanUI
 
         internal static List<string> stringsFromString(string value) => value.Split('|').ToList();
 
+#if HUI_WINDOWS
         /// <summary>
         /// Convert a System.Drawing.Color (Grasshopper-side) to a
         /// System.Windows.Media.Color (WPF-side). Used by the Hard 5 WPF
         /// components — kept on HUI_Util so component code stays terse.
+        /// Windows-only because System.Windows.Media doesn't exist on Mac
+        /// (net7.0 without -windows).
         /// </summary>
         public static System.Windows.Media.Color ToMediaColor(System.Drawing.Color color)
             => System.Windows.Media.Color.FromArgb(color.A, color.R, color.G, color.B);
+#endif
     }
 }

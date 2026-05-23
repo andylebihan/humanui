@@ -1,19 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- net7.0-windows so the System.Windows.Forms types Grasshopper exposes in its
-         menu APIs (ToolStripDropDown etc.) resolve at compile time. The .gha is still
-         loadable by Rhino on Mac because we don't actually invoke any Windows-only
-         runtime APIs through it - UseWindowsForms is enabled only for the reference
-         assemblies, not for the WinForms runtime hosting. -->
-    <TargetFramework>net7.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
-    <!-- Phase 5 enables WPF so the Hard 5 (3D View, Charts, GraphMapper,
-         GradientEditor, ClickableShapeGrid) can host their WPF FrameworkElements
-         inside Eto panels via HUI_WpfHost (uses Eto.Wpf's ControlObject = Border
-         to embed arbitrary WPF children). The .gha is Windows-only at this TFM;
-         a future Mac port would multi-target net7.0 + conditional WPF compile. -->
-    <UseWPF>true</UseWPF>
+    <!-- Multi-target so the same source produces a Windows .gha (full
+         feature set, WPF Hard 5) and a Mac .gha (Hard 5 stubbed). The
+         WPF-only PackageReferences and the Hard 5 source files are gated
+         to the -windows TFM in the conditional ItemGroups below; pure-Eto
+         components compile on both. -->
+    <TargetFrameworks>net7.0-windows;net7.0</TargetFrameworks>
     <RootNamespace>HumanUI</RootNamespace>
     <AssemblyName>HumanUI</AssemblyName>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -21,11 +14,17 @@
     <Configurations>Debug;Release</Configurations>
     <Nullable>disable</Nullable>
     <LangVersion>latest</LangVersion>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <NoWarn>$(NoWarn);NU1701;CS0168;CS0219</NoWarn>
     <FallbackCulture>en-US</FallbackCulture>
+  </PropertyGroup>
+
+  <!-- Windows TFM: enable WinForms (for Grasshopper's ToolStripDropDown menu
+       hooks) + WPF (for the Hard 5 host). -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net7.0-windows'">
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <DefineConstants>$(DefineConstants);HUI_WINDOWS</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,7 +37,10 @@
          (component icons) that get compiled into the embedded .resources via the new
          System.Resources.Extensions serializer. -->
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
-    <!-- Phase 5 dependencies: third-party WPF controls used by the Hard 5. -->
+  </ItemGroup>
+
+  <!-- Phase 5 WPF dependencies — Windows TFM only. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net7.0-windows'">
     <PackageReference Include="HelixToolkit.Wpf" Version="2.25.0" />
     <PackageReference Include="Extended.Wpf.Toolkit" Version="4.6.0" />
     <PackageReference Include="MahApps.Metro" Version="2.4.10" />
@@ -174,6 +176,45 @@
     <Compile Include="Custom Types\TrueOnlyButton.cs" />
     <!-- Phase 4 custom types. -->
     <Compile Include="Custom Types\MarkdownViewer.cs" />
+  </ItemGroup>
+
+  <!-- MacStubs are explicit-include only — exclude them from the SDK's
+       default Compile glob so they don't double-add on the Mac TFM
+       (where they're explicitly Included below). On Windows, the Remove
+       keeps them out of compile entirely (Windows uses the real WPF
+       Hard 5 components). -->
+  <ItemGroup>
+    <Compile Remove="MacStubs\**\*.cs" />
+  </ItemGroup>
+
+  <!-- Mac TFM (net7.0, no -windows): the Hard 5 WPF Custom Types and the
+       Create*/Set* components that host them are stripped from compile.
+       Mac stub files live under MacStubs/ and re-supply the same
+       ComponentGuids so .gh files load with placeholder Labels. The
+       AddElementsToShape stub stays in for both — it's already a no-op.
+
+       Custom Types in this Remove list are the WPF ones; pure-Eto custom
+       types (FilePicker, HUI_RhPickButton, HUI_RangeSlider, MarkdownViewer,
+       TrueOnlyButton) stay shared between TFMs. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net7.0'">
+    <Compile Remove="Custom Types\3DViewModel.cs" />
+    <Compile Remove="Custom Types\ChartModel.cs" />
+    <Compile Remove="Custom Types\ClickableShapeGrid.cs" />
+    <Compile Remove="Custom Types\GradientHandle.cs" />
+    <Compile Remove="Custom Types\GraphMapperElement.cs" />
+    <Compile Remove="Custom Types\HUI_Gradient.cs" />
+    <Compile Remove="Custom Types\HUI_GradientEditor.cs" />
+    <Compile Remove="Custom Types\HUI_WpfHost.cs" />
+    <Compile Remove="Components\UI Elements\Create3DView_Component.cs" />
+    <Compile Remove="Components\UI Elements\CreateShape_Component.cs" />
+    <Compile Remove="Components\UI Elements\CreateMultiShape_Component.cs" />
+    <Compile Remove="Components\UI Elements\CreateGraphMapper_Component.cs" />
+    <Compile Remove="Components\UI Elements\CreateGradientEditor_Component.cs" />
+    <Compile Remove="Components\UI Output\Set3DView_Component.cs" />
+    <Compile Remove="Components\UI Output\SetShape_Component.cs" />
+    <Compile Remove="Components\UI Output\SetShapes_Component.cs" />
+    <Compile Remove="Components\UI Graphs\**\*.cs" />
+    <Compile Include="MacStubs\**\*.cs" />
   </ItemGroup>
 
   <!-- Emit a .gha alongside the .dll for Grasshopper packaging. -->

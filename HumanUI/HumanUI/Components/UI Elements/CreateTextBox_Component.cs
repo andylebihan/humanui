@@ -2,7 +2,9 @@ using System;
 using Eto.Forms;
 using GH_IO.Serialization;
 using Grasshopper.Kernel;
+#if HUI_WINDOWS
 using ToolStripDropDown = System.Windows.Forms.ToolStripDropDown;
+#endif
 
 namespace HumanUI.Components.UI_Elements
 {
@@ -29,6 +31,7 @@ namespace HumanUI.Components.UI_Elements
         {
         }
 
+#if HUI_WINDOWS
         protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
         {
             GH_DocumentObject.Menu_AppendItem(menu, "Show Label", Menu_ShowLabelClicked, true, showLabel)
@@ -41,6 +44,7 @@ namespace HumanUI.Components.UI_Elements
                 enterItem.Checked = true;
             }
         }
+#endif
 
         private void Menu_EnterEventClicked(object sender, EventArgs e)
         {

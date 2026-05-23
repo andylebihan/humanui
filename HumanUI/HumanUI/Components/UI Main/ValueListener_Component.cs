@@ -9,7 +9,9 @@ using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Parameters;
 using Grasshopper.Kernel.Types;
 using HumanUI.Components.UI_Elements;
+#if HUI_WINDOWS
 using ToolStripDropDown = System.Windows.Forms.ToolStripDropDown;
+#endif
 
 namespace HumanUI
 {
@@ -288,11 +290,13 @@ namespace HumanUI
             return base.Read(reader);
         }
 
+#if HUI_WINDOWS
         protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
         {
             GH_DocumentObject.Menu_AppendItem(menu, "Live Update", Menu_AddEventsClicked, true, AddEventsEnabled)
                 .ToolTipText = "When checked, the component will automatically update when UI element values change in the window.";
         }
+#endif
 
         public void Menu_AddEventsClicked(object sender, EventArgs e)
         {

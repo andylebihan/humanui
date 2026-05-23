@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel;
+#if HUI_WINDOWS
 using System.Windows.Forms;
+#endif
 using Eto.Drawing;
 using Eto.Forms;
 using Grasshopper.Kernel;
@@ -151,12 +153,18 @@ namespace HumanUI.Components.UI_Main
 
             ApplyChildStatus(mw, winChildStatus);
 
+#if HUI_WINDOWS
+            // Grasshopper.Instances.ActiveCanvas is a WinForms Control on
+            // Windows; touching it from net7.0 (no -windows) won't resolve.
+            // On Mac the auto-hide-on-document-change behaviour is deferred —
+            // GH on Mac uses Eto for the canvas, hookup TBD.
             var canvas = Grasshopper.Instances.ActiveCanvas;
             if (canvas != null)
             {
                 canvas.DocumentChanged -= HideWindow;
                 canvas.DocumentChanged += HideWindow;
             }
+#endif
         }
 
         /// <summary>
@@ -199,6 +207,7 @@ namespace HumanUI.Components.UI_Main
 
         public override GH_Exposure Exposure => GH_Exposure.primary;
 
+#if HUI_WINDOWS
         protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
         {
             GH_DocumentObject.Menu_AppendItem(menu, "Child of Grasshopper", menu_makeChildofGH, true, winChildStatus == childStatus.ChildOfGH)
@@ -211,6 +220,7 @@ namespace HumanUI.Components.UI_Main
             GH_DocumentObject.Menu_AppendItem(menu, "Enable Horizontal Scrolling", menu_toggleHorizScroll, true, enableHorizScroll)
                 .ToolTipText = "When enabled, the window will show a scroll bar when content exceeds the window width.";
         }
+#endif
 
         private void menu_toggleHorizScroll(object sender, EventArgs e)
         {

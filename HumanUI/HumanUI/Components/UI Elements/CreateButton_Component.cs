@@ -4,8 +4,12 @@ using Eto.Drawing;
 using Eto.Forms;
 using GH_IO.Serialization;
 using Grasshopper.Kernel;
+#if HUI_WINDOWS
 // Bring in WinForms via type aliases so they don't shadow Eto.Forms types (Button etc).
+// Windows-only: Grasshopper's AppendAdditionalComponentMenuItems hook takes a
+// System.Windows.Forms.ToolStripDropDown, which doesn't exist at the net7.0 TFM.
 using ToolStripDropDown = System.Windows.Forms.ToolStripDropDown;
+#endif
 
 namespace HumanUI.Components.UI_Elements
 {
@@ -48,6 +52,7 @@ namespace HumanUI.Components.UI_Elements
             };
         }
 
+#if HUI_WINDOWS
         protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
         {
             GH_DocumentObject.Menu_AppendItem(menu, "Default Style", menu_makeDefaultStyle, true, bs == buttonStyle.Default)
@@ -59,6 +64,7 @@ namespace HumanUI.Components.UI_Elements
             GH_DocumentObject.Menu_AppendItem(menu, "Borderless Style", menu_makeBorderless, true, bs == buttonStyle.Borderless)
                 .ToolTipText = "Use a borderless button style.";
         }
+#endif
 
         private void menu_makeDefaultStyle(object sender, EventArgs e) { RecordUndoEvent("Button Style Change"); bs = buttonStyle.Default; UpdateMenu(); ExpireSolution(true); }
         private void menu_makeSquareStyle(object sender, EventArgs e) { RecordUndoEvent("Button Style Change"); bs = buttonStyle.Square; UpdateMenu(); ExpireSolution(true); }

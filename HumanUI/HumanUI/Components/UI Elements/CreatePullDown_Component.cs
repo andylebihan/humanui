@@ -6,7 +6,9 @@ using GH_IO.Serialization;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Special;
 using Grasshopper.Kernel.Types;
+#if HUI_WINDOWS
 using ToolStripDropDown = System.Windows.Forms.ToolStripDropDown;
+#endif
 
 namespace HumanUI.Components.UI_Elements
 {
@@ -28,11 +30,13 @@ namespace HumanUI.Components.UI_Elements
         {
         }
 
+#if HUI_WINDOWS
         protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
         {
             GH_DocumentObject.Menu_AppendItem(menu, "Show Label", Menu_ShowLabelClicked, true, showLabel)
                 .ToolTipText = "When checked, the UI Element will include the supplied label.";
         }
+#endif
 
         public void Menu_ShowLabelClicked(object sender, EventArgs e)
         {

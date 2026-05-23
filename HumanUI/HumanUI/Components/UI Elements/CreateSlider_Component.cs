@@ -8,7 +8,9 @@ using GH_IO.Serialization;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Special;
 using Grasshopper.Kernel.Types;
+#if HUI_WINDOWS
 using ToolStripDropDown = System.Windows.Forms.ToolStripDropDown;
+#endif
 
 namespace HumanUI.Components.UI_Elements
 {
@@ -178,6 +180,7 @@ namespace HumanUI.Components.UI_Elements
 
         protected override System.Drawing.Bitmap Icon => Properties.Resources.CreateSlider;
 
+#if HUI_WINDOWS
         protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
         {
             GH_DocumentObject.Menu_AppendItem(menu, "Enable Ticks", menu_enableTicks, true, showTicks)
@@ -191,6 +194,7 @@ namespace HumanUI.Components.UI_Elements
             GH_DocumentObject.Menu_AppendItem(menu, "Show Label", Menu_ShowLabelClicked, true, showLabel)
                 .ToolTipText = "When checked, the UI Element will include the supplied label.";
         }
+#endif
 
         private void menu_showBounds(object sender, EventArgs e) { RecordUndoEvent("Toggle Slider Bounds Display"); showBounds = !showBounds; ExpireSolution(true); }
         private void menu_enableValueLabel(object sender, EventArgs e) { RecordUndoEvent("Toggle Slider Value Label"); showValueReadout = !showValueReadout; ExpireSolution(true); }
