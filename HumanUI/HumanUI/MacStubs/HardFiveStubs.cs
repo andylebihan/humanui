@@ -46,41 +46,8 @@ namespace HumanUI.Components.UI_Elements
         public override Guid ComponentGuid => new Guid("{5d84c99e-fe9c-4546-8cb0-9f6fe58e011d}");
     }
 
-    public class CreateShape_Component : GH_Component
-    {
-        public CreateShape_Component()
-            : base("Create Shape", "Shape",
-                "Creates a simple shape from a polyline (Mac stub).",
-                "Human UI", "UI Elements") { }
-
-        public override GH_Exposure Exposure => GH_Exposure.secondary;
-
-        protected override void RegisterInputParams(GH_InputParamManager pManager)
-        {
-            pManager.AddCurveParameter("Shape", "S", "The shape to add as Polyline(s)", GH_ParamAccess.list);
-            pManager.AddColourParameter("Fill Color", "FC", "The fill color.", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Stroke Weight", "SW", "The stroke weight.", GH_ParamAccess.item);
-            pManager.AddColourParameter("Stroke Color", "SC", "The stroke color", GH_ParamAccess.item, System.Drawing.Color.Black);
-            pManager.AddNumberParameter("Scale", "Scl", "Resize the shape.", GH_ParamAccess.item, 1.0);
-            pManager.AddIntegerParameter("Width", "W", "The width", GH_ParamAccess.item);
-            pManager.AddIntegerParameter("Height", "H", "The height", GH_ParamAccess.item);
-            for (int i = 1; i < 7; i++) pManager[i].Optional = true;
-        }
-
-        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
-        {
-            pManager.AddGenericParameter("Shape", "S", "The created shape.", GH_ParamAccess.item);
-        }
-
-        protected override void SolveInstance(IGH_DataAccess DA)
-        {
-            AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "Shape not supported on Mac (WPF Path stub).");
-            DA.SetData("Shape", new UIElement_Goo(new Label { Text = "[Shape - Mac stub]" }, "Shape", InstanceGuid, DA.Iteration));
-        }
-
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.CreateShape;
-        public override Guid ComponentGuid => new Guid("{0ab1c8a7-4182-4a7b-bda3-67c24677182c}");
-    }
+    // CreateShape_Component lives in MacStubs/HUI_Shape.cs — real
+    // Eto.Drawable-backed implementation rather than a label placeholder.
 
     public class CreateMultiShape_Component : GH_Component
     {
@@ -207,40 +174,8 @@ namespace HumanUI.Components.UI_Output
         public override Guid ComponentGuid => new Guid("{3472130d-fc0e-409d-9295-f93ecaf1afb5}");
     }
 
-    public class SetShape_Component : GH_Component
-    {
-        public SetShape_Component()
-            : base("Set Shape", "SetShape", "Modify a shape (Mac stub).", "Human UI", "UI Output") { }
-
-        protected override void RegisterInputParams(GH_InputParamManager pManager)
-        {
-            pManager.AddGenericParameter("Shape to Modify", "S", "Shape", GH_ParamAccess.item);
-            pManager.AddCurveParameter("Shape Curve", "SC", "Curve", GH_ParamAccess.list);
-            pManager[1].Optional = true;
-            pManager.AddColourParameter("Fill Color", "FC", "Fill", GH_ParamAccess.item);
-            pManager[2].Optional = true;
-            pManager.AddNumberParameter("Stroke Weight", "SW", "Stroke", GH_ParamAccess.item);
-            pManager[3].Optional = true;
-            pManager.AddColourParameter("Stroke Color", "SC", "Stroke color", GH_ParamAccess.item);
-            pManager[4].Optional = true;
-            pManager.AddNumberParameter("Scale", "Scl", "Scale", GH_ParamAccess.item, 1.0);
-            pManager[5].Optional = true;
-            pManager.AddIntegerParameter("Width", "W", "Width", GH_ParamAccess.item);
-            pManager[6].Optional = true;
-            pManager.AddIntegerParameter("Height", "H", "Height", GH_ParamAccess.item);
-            pManager[7].Optional = true;
-        }
-
-        protected override void RegisterOutputParams(GH_OutputParamManager pManager) { }
-
-        protected override void SolveInstance(IGH_DataAccess DA)
-        {
-            AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "Set Shape not supported on Mac.");
-        }
-
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.SetShape;
-        public override Guid ComponentGuid => new Guid("{f6881435-7de3-4098-ada8-f3068ed7331c}");
-    }
+    // SetShape_Component lives in MacStubs/HUI_Shape.cs alongside the
+    // real CreateShape implementation.
 
     public class SetShapes_Component : GH_Component
     {
