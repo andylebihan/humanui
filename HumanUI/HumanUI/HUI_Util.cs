@@ -181,6 +181,9 @@ namespace HumanUI
                 case TabControl tabs:
                     return tabs.SelectedPage?.Text ?? string.Empty;
                 case Expander exp: return exp.Expanded;
+#if !HUI_WINDOWS
+                case HUI_MultiShape ms: return ms.SelectedStates;
+#endif
 #if HUI_WINDOWS
                 // HUI_WpfHost wraps a WPF FrameworkElement for the Hard 5
                 // (3D View, Charts, GraphMapper, GradientEditor,

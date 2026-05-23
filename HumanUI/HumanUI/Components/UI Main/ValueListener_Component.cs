@@ -172,6 +172,12 @@ namespace HumanUI
                 case Scrollable s when s.ID == "GH_Checklist":
                     WireChecklistEvents(s, true);
                     break;
+#if !HUI_WINDOWS
+                case HUI_MultiShape ms:
+                    ms.SelectionChanged -= ExpireThis;
+                    ms.SelectionChanged += ExpireThis;
+                    break;
+#endif
                 case TextBox tb when (tb.Tag as string) == "enterEvent":
                     tb.KeyDown -= OnTextBoxKeyPressed;
                     tb.KeyDown += OnTextBoxKeyPressed;
@@ -220,6 +226,9 @@ namespace HumanUI
                 case ColorPicker cp: cp.ValueChanged -= ExpireThis; break;
                 case GridView gv: gv.SelectionChanged -= ExpireThis; break;
                 case Scrollable s when s.ID == "GH_Checklist": WireChecklistEvents(s, false); break;
+#if !HUI_WINDOWS
+                case HUI_MultiShape ms: ms.SelectionChanged -= ExpireThis; break;
+#endif
                 case TextBox tb:
                     tb.TextChanged -= ExpireThis;
                     tb.KeyDown -= OnTextBoxKeyPressed;
