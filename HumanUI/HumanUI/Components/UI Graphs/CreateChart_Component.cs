@@ -147,7 +147,7 @@ namespace HumanUI.Components
             ChartElem.MinWidth = 10;
             ChartElem.MinHeight = 10;
            
-            DA.SetData("Chart", new UIElement_Goo(ChartElem, "Chart Elem", InstanceGuid, DA.Iteration));
+            DA.SetData("Chart", new UIElement_Goo(new HUI_WpfHost(ChartElem), "Chart Elem", InstanceGuid, DA.Iteration));
         }
 
         /// <summary>

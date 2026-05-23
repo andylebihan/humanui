@@ -38,7 +38,12 @@ namespace HumanUI.Components.UI_Output
 
             if (DA.GetData("Default Color", ref defaultCol))
             {
-                picker.Value = Eto.Drawing.Color.FromArgb(defaultCol.R, defaultCol.G, defaultCol.B, defaultCol.A);
+                // Same alpha-normalisation as CreateColorPicker — treat A=0 as
+                // unspecified rather than "fully transparent" so an upstream
+                // Color.Empty doesn't silently make the picker (and any
+                // downstream consumers like Set 3D View) render transparent.
+                byte alpha = defaultCol.A == 0 ? (byte)255 : defaultCol.A;
+                picker.Value = Eto.Drawing.Color.FromArgb(defaultCol.R, defaultCol.G, defaultCol.B, alpha);
             }
             DA.GetDataList("Available Colors", availableCols);
         }

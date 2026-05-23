@@ -63,31 +63,28 @@ namespace HumanUI
                 }
             }
 
-            if(gm == null)
+            GraphMapperElement element;
+            if (gm == null)
             {
-                DA.SetData("Graph Mapper", new UIElement_Goo(new GraphMapperElement(), "Graph Mapper", InstanceGuid, DA.Iteration));
-                return;
-            } else
+                element = new GraphMapperElement();
+            }
+            else if (gm.Graph.GraphTypeID != new Guid("{7026A6D2-9B94-4314-B6D3-6850EFF942FE}"))
             {
-               if(gm.Graph.GraphTypeID != new Guid("{7026A6D2-9B94-4314-B6D3-6850EFF942FE}"))
-                {
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Currently, only Bezier type graphs are supported.");
-                    DA.SetData("Graph Mapper", new UIElement_Goo(new GraphMapperElement(), "Graph Mapper", InstanceGuid, DA.Iteration));
-                    return;
-                }
-                GH_BezierGraph graph = gm.Graph as GH_BezierGraph;
-                Point c0 = new Point(graph.Grips[0].X, graph.Grips[0].Y);
-                Point c1 = new Point(graph.Grips[1].X, graph.Grips[1].Y);
-                Point c2 = new Point(graph.Grips[2].X, graph.Grips[2].Y);
-                Point c3 = new Point(graph.Grips[3].X, graph.Grips[3].Y);
-
-                DA.SetData("Graph Mapper", new UIElement_Goo(new GraphMapperElement(c0,c1,c2,c3), "Graph Mapper", InstanceGuid, DA.Iteration));
-                return;
-
-
-
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Currently, only Bezier type graphs are supported.");
+                element = new GraphMapperElement();
+            }
+            else
+            {
+                var graph = gm.Graph as GH_BezierGraph;
+                var c0 = new Point(graph.Grips[0].X, graph.Grips[0].Y);
+                var c1 = new Point(graph.Grips[1].X, graph.Grips[1].Y);
+                var c2 = new Point(graph.Grips[2].X, graph.Grips[2].Y);
+                var c3 = new Point(graph.Grips[3].X, graph.Grips[3].Y);
+                element = new GraphMapperElement(c0, c1, c2, c3);
             }
 
+            var host = new HUI_WpfHost(element);
+            DA.SetData("Graph Mapper", new UIElement_Goo(host, "Graph Mapper", InstanceGuid, DA.Iteration));
         }
 
         /// <summary>

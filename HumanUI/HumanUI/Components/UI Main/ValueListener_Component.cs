@@ -159,6 +159,10 @@ namespace HumanUI
                     range.RangeChanged -= ExpireThis;
                     range.RangeChanged += ExpireThis;
                     break;
+                case ColorPicker cp:
+                    cp.ValueChanged -= ExpireThis;
+                    cp.ValueChanged += ExpireThis;
+                    break;
                 case GridView gv:
                     gv.SelectionChanged -= ExpireThis;
                     gv.SelectionChanged += ExpireThis;
@@ -211,6 +215,7 @@ namespace HumanUI
             {
                 case HUI_FloatSlider slider: slider.ValueChanged -= ExpireThis; break;
                 case HUI_RangeSlider range: range.RangeChanged -= ExpireThis; break;
+                case ColorPicker cp: cp.ValueChanged -= ExpireThis; break;
                 case GridView gv: gv.SelectionChanged -= ExpireThis; break;
                 case Scrollable s when s.ID == "GH_Checklist": WireChecklistEvents(s, false); break;
                 case TextBox tb:

@@ -79,9 +79,9 @@ namespace HumanUI.Components
                 if (presets.Select(p => p.ToString()).Any(p => p.Contains(gradientToAdd.ToString()))) continue;
                 presets.Add(gradientToAdd);
             }
-            HUI_GradientEditor hge = new HUI_GradientEditor(showPresets, showEditor, presets);
-            DA.SetData("Gradient Editor", new UIElement_Goo(hge, "Gradient Editor", InstanceGuid, DA.Iteration));
-
+            var hge = new HUI_GradientEditor(showPresets, showEditor, presets);
+            var host = new HUI_WpfHost(hge);
+            DA.SetData("Gradient Editor", new UIElement_Goo(host, "Gradient Editor", InstanceGuid, DA.Iteration));
         }
 
         private void ExtractGradients(List<GH_Gradient> gradients, List<object> gradientObjects, int paramIndex = 0)

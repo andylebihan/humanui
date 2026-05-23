@@ -162,7 +162,7 @@ namespace HumanUI.Components
 
 
             ////Send Data to GH output
-            DA.SetData("MultiChart", new UIElement_Goo(ChartElem, "Chart Elem", InstanceGuid, DA.Iteration));
+            DA.SetData("MultiChart", new UIElement_Goo(new HUI_WpfHost(ChartElem), "Chart Elem", InstanceGuid, DA.Iteration));
             //  DA.SetData("Test","listNames");
         }
 

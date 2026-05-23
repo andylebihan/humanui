@@ -45,7 +45,14 @@ namespace HumanUI.Components.UI_Elements
 
             if (DA.GetData("Default Color", ref defaultCol))
             {
-                picker.Value = Eto.Drawing.Color.FromArgb(defaultCol.R, defaultCol.G, defaultCol.B, defaultCol.A);
+                // Force opaque alpha. Eto.Forms.ColorPicker doesn't expose an
+                // alpha slider by default, so any A=0 that arrives (e.g. an
+                // unwired Color parameter resolves to Color.Empty which is
+                // (0,0,0,0)) would stick in the picker silently and downstream
+                // consumers would render fully transparent. Treat A=0 as
+                // "unspecified, opaque" to match the legacy WPF behaviour.
+                byte alpha = defaultCol.A == 0 ? (byte)255 : defaultCol.A;
+                picker.Value = Eto.Drawing.Color.FromArgb(defaultCol.R, defaultCol.G, defaultCol.B, alpha);
             }
             DA.GetDataList("Available Colors", availableCols);
 

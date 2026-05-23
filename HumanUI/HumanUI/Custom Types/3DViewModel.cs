@@ -36,12 +36,20 @@ namespace HumanUI
          /// <param name="colors">The colors.</param>
         public _3DViewModel(List<Mesh> meshes, List<System.Drawing.Color> colors)
         {
+            // Guard against an empty color list at the source: a few upstream
+            // paths (ValueListener-fed Set3DView, scripts wiring nothing into
+            // Mesh Colors) can hand us a zero-length list, and `i % 0` would
+            // crash with DivideByZeroException. Defaulting to red matches the
+            // legacy WPF behaviour of "if no color, show something visible".
+            if (colors == null || colors.Count == 0)
+                colors = new List<System.Drawing.Color> { System.Drawing.Color.Red };
+
             List<Material> mats = new List<Material>();
             for (int i = 0; i < meshes.Count; i++)
             {
                 mats.Add(MaterialHelper.CreateMaterial(HUI_Util.ToMediaColor(colors[i % colors.Count])));
             }
-             setupModel(meshes, mats,false);
+            setupModel(meshes, mats, false);
         }
 
 
@@ -52,11 +60,21 @@ namespace HumanUI
         /// <param name="bitmaps">The bitmaps.</param>
         public _3DViewModel(List<Mesh> meshes, List<string> bitmaps)
         {
+            // No bitmaps? Fall back to the color-list constructor so the mesh
+            // still renders instead of throwing DivideByZero on i % 0.
+            if (bitmaps == null || bitmaps.Count == 0)
+            {
+                List<Material> defaultMats = new List<Material>();
+                for (int i = 0; i < meshes.Count; i++)
+                    defaultMats.Add(MaterialHelper.CreateMaterial(HUI_Util.ToMediaColor(System.Drawing.Color.Red)));
+                setupModel(meshes, defaultMats, false);
+                return;
+            }
             List<Material> mats = new List<Material>();
             //for each mesh, create an image material based on the matching bitmaps
             for (int i = 0; i < meshes.Count; i++)
             {
-           
+
                 mats.Add(MaterialHelper.CreateImageMaterial(bitmaps[i % bitmaps.Count],1,UriKind.Absolute,false));
             }
             //set up the model
