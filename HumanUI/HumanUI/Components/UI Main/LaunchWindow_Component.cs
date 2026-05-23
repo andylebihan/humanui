@@ -88,9 +88,11 @@ namespace HumanUI.Components.UI_Main
             {
                 shouldBeVisible = true;
                 mw.Show();
-                // Eto's Show() does not always pull a window forward when another HWND has
-                // focus (the canvas the user just clicked on). BringToFront fixes the
-                // "appears behind Rhino" complaint on first toggle.
+                // With Owner set via ApplyChildStatus the parent-child z-order is
+                // enforced by the OS — the window stays above the owner without
+                // needing the previous Topmost flicker hack. We still
+                // BringToFront once so the initial appearance is on top even
+                // when GH had focus on the same Owner level.
                 mw.BringToFront();
             }
             else
@@ -168,13 +170,81 @@ namespace HumanUI.Components.UI_Main
         }
 
         /// <summary>
-        /// Apply the AlwaysOnTop semantics. Owner-handle parenting (ChildOfGH / ChildOfRhino)
-        /// is platform-specific and is deferred until phase 5; for now ChildOf* falls back
-        /// to default placement and AlwaysOnTop still works via Topmost.
+        /// Apply the parent-window relationship that controls how the HumanUI window
+        /// orders against Rhino / Grasshopper / other apps.
+        ///
+        ///   Windows:
+        ///     ChildOfRhino  — Eto.Forms.Window.Owner = Rhino's main window.
+        ///     ChildOfGH     — Owner = GH window if reachable via Eto; otherwise
+        ///                     falls back to Rhino main. (On Win, GH is WinForms
+        ///                     and isn't reachable as an Eto.Forms.Window.)
+        ///     AlwaysOnTop   — Owner = null, Topmost = true.
+        ///
+        ///   Mac:
+        ///     Rhino.UI.RhinoEtoApp.MainWindow returns null and GH's canvas
+        ///     isn't enumerated by Eto.Forms.Application.Instance.Windows
+        ///     either (verified by diagnostic in 0.9.29). The Eto Owner
+        ///     mechanism therefore has no parent to attach to. ChildOfRhino
+        ///     and ChildOfGH both fall back to Topmost = true — keeps the
+        ///     window above GH but loses the "follows GH minimize/restore"
+        ///     behavior. Proper Mac child-window semantics need
+        ///     NSWindow.AddChildWindow via AppKit, which requires either
+        ///     a net7.0-macos TFM or Eto.Mac ObjC interop — Phase 7 work.
         /// </summary>
         internal static void ApplyChildStatus(MainWindow mw, childStatus status)
         {
-            mw.Topmost = status == childStatus.AlwaysOnTop;
+            var rhinoMain = Rhino.UI.RhinoEtoApp.MainWindow;
+            var gh = FindGrasshopperWindow();
+
+            switch (status)
+            {
+                case childStatus.AlwaysOnTop:
+                    mw.Owner = null;
+                    mw.Topmost = true;
+                    return;
+                case childStatus.ChildOfGH:
+#if HUI_WINDOWS
+                    mw.Owner = gh ?? rhinoMain;
+                    mw.Topmost = false;
+#else
+                    // Mac: no reachable parent NSWindow via Eto. Topmost is
+                    // the only mechanism that keeps the window above GH.
+                    mw.Owner = gh ?? rhinoMain;
+                    mw.Topmost = true;
+#endif
+                    return;
+                case childStatus.ChildOfRhino:
+                default:
+#if HUI_WINDOWS
+                    mw.Owner = rhinoMain;
+                    mw.Topmost = false;
+#else
+                    mw.Owner = rhinoMain;
+                    mw.Topmost = true;
+#endif
+                    return;
+            }
+        }
+
+        /// <summary>
+        /// Best-effort lookup of the Grasshopper canvas window as an Eto window.
+        /// Returns null on Mac (GH's canvas isn't an Eto.Forms.Window the way
+        /// we'd hoped) and on Windows (GH is WinForms). Title-matching against
+        /// Application.Instance.Windows is kept against the day a future
+        /// Rhino/GH version exposes it.
+        /// </summary>
+        private static Eto.Forms.Window FindGrasshopperWindow()
+        {
+            try
+            {
+                foreach (var w in Eto.Forms.Application.Instance.Windows)
+                {
+                    if (w?.Title != null && w.Title.IndexOf("grasshopper", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                        return w;
+                }
+            }
+            catch { }
+            return null;
         }
 
         void mw_Closing(object sender, CancelEventArgs e)
