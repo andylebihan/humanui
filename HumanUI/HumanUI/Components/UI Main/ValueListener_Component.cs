@@ -177,6 +177,22 @@ namespace HumanUI
                     ms.SelectionChanged -= ExpireThis;
                     ms.SelectionChanged += ExpireThis;
                     break;
+                case HUI_GraphMapper gm:
+                    gm.HandlesChanged -= ExpireThis;
+                    gm.HandlesChanged += ExpireThis;
+                    break;
+                case HUI_GradientEditor ge:
+                    ge.GradientChanged -= ExpireThis;
+                    ge.GradientChanged += ExpireThis;
+                    break;
+                case HUI_Chart chart:
+                    chart.SelectionChanged -= ExpireThis;
+                    chart.SelectionChanged += ExpireThis;
+                    break;
+                case HUI_MultiChart multiChart:
+                    multiChart.SelectionChanged -= ExpireThis;
+                    multiChart.SelectionChanged += ExpireThis;
+                    break;
 #endif
                 case TextBox tb when (tb.Tag as string) == "enterEvent":
                     tb.KeyDown -= OnTextBoxKeyPressed;
@@ -228,6 +244,10 @@ namespace HumanUI
                 case Scrollable s when s.ID == "GH_Checklist": WireChecklistEvents(s, false); break;
 #if !HUI_WINDOWS
                 case HUI_MultiShape ms: ms.SelectionChanged -= ExpireThis; break;
+                case HUI_GraphMapper gm: gm.HandlesChanged -= ExpireThis; break;
+                case HUI_GradientEditor ge: ge.GradientChanged -= ExpireThis; break;
+                case HUI_Chart chart: chart.SelectionChanged -= ExpireThis; break;
+                case HUI_MultiChart multiChart: multiChart.SelectionChanged -= ExpireThis; break;
 #endif
                 case TextBox tb:
                     tb.TextChanged -= ExpireThis;

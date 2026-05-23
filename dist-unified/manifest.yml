@@ -1,6 +1,6 @@
 ---
 name: human-ui
-version: 0.9.34
+version: 0.9.37
 authors:
 - Andrew Heumann
 description: Eto migration of HumanUI. Cross-platform - Tier-1 elements, containers, ValueListener, and Phase 3-4 components (incl. Tabbed View, Range Slider, Checklist, Grid, Data Table, Markdown Viewer) work natively via Eto.Forms on both Windows and Mac. The Hard 5 (3D View, Charts, GraphMapper, GradientEditor, Shape/Shapes) use real WPF on Windows and are stubbed on Mac. Single yak with per-TFM subfolders. Requires Rhino 8.27+.

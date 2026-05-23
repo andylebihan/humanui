@@ -183,6 +183,17 @@ namespace HumanUI
                 case Expander exp: return exp.Expanded;
 #if !HUI_WINDOWS
                 case HUI_MultiShape ms: return ms.SelectedStates;
+                case HUI_GraphMapper gm: return gm.GetCurve();
+                case HUI_GradientEditor ge: return ge.Gradient;
+                // Charts return their last-clicked category (string). On
+                // Windows the matching path falls through to the WPF
+                // ChartBase via HUI_WpfHost — neither platform's
+                // ValueListener does anything useful with the chart itself,
+                // but the Mac side can surface the click so ValueListener
+                // tells the user which slice/bar was hit.
+                case HUI_Chart c: return c.SelectedCategory ?? string.Empty;
+                case HUI_MultiChart mc:
+                    return new[] { mc.SelectedCategory ?? string.Empty, mc.SelectedSeries ?? string.Empty };
 #endif
 #if HUI_WINDOWS
                 // HUI_WpfHost wraps a WPF FrameworkElement for the Hard 5
