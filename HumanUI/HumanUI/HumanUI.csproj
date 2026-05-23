@@ -8,6 +8,12 @@
          assemblies, not for the WinForms runtime hosting. -->
     <TargetFramework>net7.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <!-- Phase 5 enables WPF so the Hard 5 (3D View, Charts, GraphMapper,
+         GradientEditor, ClickableShapeGrid) can host their WPF FrameworkElements
+         inside Eto panels via HUI_WpfHost (uses Eto.Wpf's ControlObject = Border
+         to embed arbitrary WPF children). The .gha is Windows-only at this TFM;
+         a future Mac port would multi-target net7.0 + conditional WPF compile. -->
+    <UseWPF>true</UseWPF>
     <RootNamespace>HumanUI</RootNamespace>
     <AssemblyName>HumanUI</AssemblyName>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -32,6 +38,11 @@
          (component icons) that get compiled into the embedded .resources via the new
          System.Resources.Extensions serializer. -->
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+    <!-- Phase 5 dependencies: third-party WPF controls used by the Hard 5. -->
+    <PackageReference Include="HelixToolkit.Wpf" Version="2.25.0" />
+    <PackageReference Include="Extended.Wpf.Toolkit" Version="4.6.0" />
+    <PackageReference Include="MahApps.Metro" Version="2.4.10" />
+    <PackageReference Include="De.TorstenMandelkow.MetroChart" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -119,9 +130,14 @@
     <Compile Include="Components\UI Output\SetDataTable_Component.cs" />
     <!-- Custom Types\HUI_RangeSlider.cs auto-included by SDK (not in any Remove). -->
     <!-- Custom Types\MarkdownViewer.cs is explicitly Removed below then re-included; see Custom Types include block. -->
-    <!-- Phase 5 stubs (preserve GUIDs so legacy .gh files load). -->
+    <!-- Phase 5: WPF-on-Windows ports for the Hard 5. Each Create*/Set* hosts
+         its WPF FrameworkElement inside an Eto.Forms.Panel via HUI_WpfHost. -->
+    <Compile Include="Components\UI Elements\CreateGraphMapper_Component.cs" />
+    <Compile Include="Components\UI Elements\CreateGradientEditor_Component.cs" />
     <Compile Include="Components\UI Elements\CreateMultiShape_Component.cs" />
     <Compile Include="Components\UI Output\SetShapes_Component.cs" />
+    <Compile Include="Components\UI Output\AddElementsToShape_Component.cs" />
+    <Compile Include="Components\UI Graphs\**\*.cs" />
     <Compile Remove="Deprecated\**\*.cs" />
     <!-- Legacy hidden-Obsolete shims so historical .gh files resolve their old GUIDs
          without forcing an upgrade chain. Must come AFTER the bulk Remove so this
@@ -145,14 +161,7 @@
     <!-- Phase 3 UI Main entries (re-introduced from their Compile Remove just above). -->
     <Compile Include="Components\UI Main\AdjustElementPositioning_Component.cs" />
     <Compile Include="Components\UI Main\HideShowElement_Component.cs" />
-    <Compile Remove="Custom Types\3DViewModel.cs" />
-    <Compile Remove="Custom Types\ChartModel.cs" />
-    <Compile Remove="Custom Types\ClickableShapeGrid.cs" />
     <Compile Remove="Custom Types\FilePicker.cs" />
-    <Compile Remove="Custom Types\GradientHandle.cs" />
-    <Compile Remove="Custom Types\GraphMapperElement.cs" />
-    <Compile Remove="Custom Types\HUI_Gradient.cs" />
-    <Compile Remove="Custom Types\HUI_GradientEditor.cs" />
     <Compile Remove="Custom Types\HUI_RhPickButton.cs" />
     <Compile Remove="Custom Types\MarkdownViewer.cs" />
     <Compile Remove="Custom Types\MDSliderElement.cs" />

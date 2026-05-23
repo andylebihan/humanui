@@ -1,17 +1,25 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using Grasshopper.Kernel;
+using HumanUI.Components.UI_Elements;
+using Rhino.Geometry;
 
 namespace HumanUI.Components.UI_Output
 {
     /// <summary>
-    /// Stub for the Eto migration. Pairs with the CreateShape stub; no-ops at runtime
-    /// and emits a remark so users can see the gap.
+    /// Update an existing CreateShape output: swap geometry, fill, stroke, and
+    /// optionally container size. The Shape's HUI_WpfHost is unwrapped to the
+    /// inner WPF Grid → Path.
     /// </summary>
     public class SetShape_Component : GH_Component
     {
         public SetShape_Component()
             : base("Set Shape", "SetShape",
-                "Modify an existing shape (Eto preview: not yet ported).",
+                "Modify an existing shape",
                 "Human UI", "UI Output")
         {
         }
@@ -27,7 +35,7 @@ namespace HumanUI.Components.UI_Output
             pManager[3].Optional = true;
             pManager.AddColourParameter("Stroke Color", "SC", "Stroke color", GH_ParamAccess.item);
             pManager[4].Optional = true;
-            pManager.AddNumberParameter("Scale", "Scl", "Scale factor", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Scale", "Scl", "Scale factor", GH_ParamAccess.item, 1.0);
             pManager[5].Optional = true;
             pManager.AddIntegerParameter("Width", "W", "Width", GH_ParamAccess.item);
             pManager[6].Optional = true;
@@ -39,8 +47,32 @@ namespace HumanUI.Components.UI_Output
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                "Set Shape is not yet ported to Eto.");
+            object shapeObj = null;
+            var crvs = new List<Curve>();
+            var fillCol = System.Drawing.Color.Transparent;
+            double strokeWeight = 0;
+            var strokeCol = System.Drawing.Color.Transparent;
+            double scale = 1.0;
+            int width = 0, height = 0;
+            if (!DA.GetData("Shape to Modify", ref shapeObj)) return;
+            bool hasCrvs = DA.GetDataList("Shape Curve", crvs);
+
+            var grid = HUI_WpfHost.Unwrap<Grid>(shapeObj);
+            if (grid == null) return;
+            var path = grid.Children.OfType<Path>().FirstOrDefault();
+            if (path == null) return;
+
+            DA.GetData("Scale", ref scale);
+            if (hasCrvs && crvs.Count > 0)
+                path.Data = CreateShape_Component.PathGeomFromCrvs(crvs, scale, false);
+            if (DA.GetData("Fill Color", ref fillCol))
+                path.Fill = new SolidColorBrush(HUI_Util.ToMediaColor(fillCol));
+            if (DA.GetData("Stroke Weight", ref strokeWeight))
+                path.StrokeThickness = strokeWeight;
+            if (DA.GetData("Stroke Color", ref strokeCol))
+                path.Stroke = new SolidColorBrush(HUI_Util.ToMediaColor(strokeCol));
+            if (DA.GetData("Width", ref width)) grid.Width = width;
+            if (DA.GetData("Height", ref height)) grid.Height = height;
         }
 
         protected override System.Drawing.Bitmap Icon => Properties.Resources.SetShape;

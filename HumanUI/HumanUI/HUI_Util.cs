@@ -15,16 +15,22 @@ namespace HumanUI
     internal static class HUI_Util
     {
         /// <summary>
-        /// Extract a typed Eto control from whatever flavour of wrapper Grasshopper hands
-        /// us. Set-* components always go through this entry point so they accept the
-        /// same wire input as the Create-* components produce.
+        /// Extract a typed control from whatever flavour of wrapper Grasshopper
+        /// hands us. Returns the requested type whether it's an Eto Control (the
+        /// common Tier-1 / containers case) or a WPF FrameworkElement reached
+        /// through HUI_WpfHost (the Hard 5 / WPF-backed components). Set-*
+        /// components always go through this single entry point.
         /// </summary>
-        public static T GetUIElement<T>(object o) where T : Control
+        public static T GetUIElement<T>(object o) where T : class
         {
             switch (o)
             {
-                case UIElement_Goo goo: return goo.element as T;
+                case UIElement_Goo goo:
+                    if (goo.element is T direct) return direct;
+                    if (goo.element is HUI_WpfHost host && host.WpfElement is T wpf) return wpf;
+                    return null;
                 case GH_ObjectWrapper wrapper: return wrapper.Value as T;
+                case HUI_WpfHost h when h.WpfElement is T w: return w;
                 default: return o as T;
             }
         }
@@ -140,6 +146,24 @@ namespace HumanUI
                 case RadioButton rb: return rb.Checked;
                 case Components.UI_Elements.HUI_FloatSlider slider: return slider.FloatValue;
                 case HUI_RangeSlider range: return new[] { range.LowerValue, range.UpperValue };
+                case ColorPicker cp:
+                    {
+                        // Eto.Drawing.Color stores ARGB as float 0..1. Convert
+                        // back to the System.Drawing.Color GH expects for the
+                        // Colour parameter type. Force opaque if AllowAlpha is
+                        // off (the default): the picker doesn't expose an
+                        // alpha slider, so any A=0 sitting in Value would be
+                        // accidental — likely inherited from a Color.Empty
+                        // upstream — and pushing it through would render
+                        // downstream WPF materials fully transparent.
+                        var c = cp.Value;
+                        int alpha = cp.AllowAlpha ? (int)Math.Round(c.A * 255) : 255;
+                        return System.Drawing.Color.FromArgb(
+                            alpha,
+                            (int)Math.Round(c.R * 255),
+                            (int)Math.Round(c.G * 255),
+                            (int)Math.Round(c.B * 255));
+                    }
                 case ListBox lb:
                     return (lb.SelectedValue as ListItem)?.Text ?? string.Empty;
                 case DropDown dd:
@@ -150,6 +174,16 @@ namespace HumanUI
                 case FilePicker fp: return fp.Path;
                 case Scrollable s when s.ID == "GH_Checklist": return CollectChecklistValues(s);
                 case GridView gv: return CollectGridViewSelection(gv);
+                case TabControl tabs:
+                    return tabs.SelectedPage?.Text ?? string.Empty;
+                case Expander exp: return exp.Expanded;
+                // HUI_WpfHost wraps a WPF FrameworkElement for the Hard 5
+                // (3D View, Charts, GraphMapper, GradientEditor,
+                // ClickableShapeGrid). Returning the inner element (rather
+                // than null) gives downstream Set/Get components something to
+                // unwrap and avoids the silent-null cascade that triggered the
+                // 3D-View-transparency bug when ColorPicker was missing here.
+                case HUI_WpfHost host: return host.WpfElement;
                 default: return null;
             }
         }
@@ -281,5 +315,13 @@ namespace HumanUI
         internal static string stringFromStrings(List<string> values) => string.Join("|", values);
 
         internal static List<string> stringsFromString(string value) => value.Split('|').ToList();
+
+        /// <summary>
+        /// Convert a System.Drawing.Color (Grasshopper-side) to a
+        /// System.Windows.Media.Color (WPF-side). Used by the Hard 5 WPF
+        /// components — kept on HUI_Util so component code stays terse.
+        /// </summary>
+        public static System.Windows.Media.Color ToMediaColor(System.Drawing.Color color)
+            => System.Windows.Media.Color.FromArgb(color.A, color.R, color.G, color.B);
     }
 }
