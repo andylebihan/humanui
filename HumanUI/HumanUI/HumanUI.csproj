@@ -33,7 +33,7 @@
          Eto.dll (PublicKeyToken=552281e97c755530). We reference that Eto directly rather
          than the unsigned one from the Eto.Forms NuGet, so all assemblies in the load
          graph agree on a single Eto identity. -->
-    <PackageReference Include="Grasshopper" Version="8.0.23304.9001" ExcludeAssets="runtime" />
+    <PackageReference Include="Grasshopper" Version="8.27.26019.16021" ExcludeAssets="runtime" />
     <!-- Needed at build time because Properties/Resources.resx contains image entries
          (component icons) that get compiled into the embedded .resources via the new
          System.Resources.Extensions serializer. -->

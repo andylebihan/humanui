@@ -18,7 +18,7 @@
     <PackageReference Include="xunit" Version="2.6.6" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6" />
     <!-- Tests need Grasshopper/RhinoCommon (which also provides Eto.dll) at runtime. -->
-    <PackageReference Include="Grasshopper" Version="8.0.23304.9001" />
+    <PackageReference Include="Grasshopper" Version="8.27.26019.16021" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,6 @@
 ---
 name: human-ui
-version: 0.9.23
+version: 0.9.24
 authors:
 - Andrew Heumann
 description: Phase 5 Eto preview. Hard 5 ported as WPF-on-Windows hosted inside Eto via HUI_WpfHost - 3D View (HelixToolkit), Shape & Shapes (clickable), GraphMapper, GradientEditor, Charts (MetroChart). AddElementsToShape remains a stub (mixing Eto labels into a WPF shape tree is not supported). For Rhino 8 on Windows.

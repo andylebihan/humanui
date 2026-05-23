@@ -22,7 +22,7 @@
          assemblies and a downstream project that mixes them gets CS0012 / CS1061
          resolution errors. RhinoCommon's runtime is excluded so we don't redistribute
          it; Rhino provides it at load time. -->
-    <PackageReference Include="RhinoCommon" Version="8.0.23304.9001" ExcludeAssets="runtime" />
+    <PackageReference Include="RhinoCommon" Version="8.27.26019.16021" ExcludeAssets="runtime" />
   </ItemGroup>
 
 </Project>
