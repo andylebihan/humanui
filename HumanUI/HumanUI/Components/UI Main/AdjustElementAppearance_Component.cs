@@ -1,38 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-
+using System;
+using System.Linq;
+using Eto.Drawing;
+using Eto.Forms;
 using Grasshopper.Kernel;
-using Grasshopper.Kernel.Parameters;
-using Rhino.Geometry;
-using System.Windows.Controls;
-using System.Windows;
-using HumanUIBaseApp;
-using System.Windows.Media;
-using System.Windows.Controls.Primitives;
-using De.TorstenMandelkow.MetroChart;
-
 
 namespace HumanUI.Components.UI_Main
 {
     /// <summary>
-    /// Adjust the color and appearance of individual elements
+    /// Apply Foreground / Background / FontSize to a HUI element. Walks
+    /// the element's logical children for containers so a "color the whole
+    /// stack" call hits every Eto.TextControl underneath. The WPF version's
+    /// ChartBase / WPF Expander-header coupling is dropped — chart fills
+    /// are managed by SetChartAppearance now, and Expander headers are
+    /// plain strings on the Eto side.
     /// </summary>
-    /// <seealso cref="Grasshopper.Kernel.GH_Component" />
     public class AdjustElementAppearance_Component : GH_Component
     {
-        /// <summary>
-        /// Initializes a new instance of the AdjustElementAppearance_Component class.
-        /// </summary>
         public AdjustElementAppearance_Component()
             : base("Adjust Element Appearance", "AdjustElem",
                 "Adjust the color and appearance of individual elements.",
                 "Human UI", "UI Main")
-        {
-        }
+        { }
 
-        /// <summary>
-        /// Registers all the input parameters for this component.
-        /// </summary>
+        public override GH_Exposure Exposure => GH_Exposure.secondary;
+
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Elements to Adjust", "E", "The elements to adjust", GH_ParamAccess.item);
@@ -44,219 +35,73 @@ namespace HumanUI.Components.UI_Main
             pManager[3].Optional = true;
         }
 
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager) { }
 
-
-        public override GH_Exposure Exposure => GH_Exposure.secondary;
-
-        /// <summary>
-        /// Registers all the output parameters for this component.
-        /// </summary>
-        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
-        {
-
-        }
-
-        /// <summary>
-        /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
+            object elem = null;
             System.Drawing.Color? fgCol = null;
             System.Drawing.Color? bgCol = null;
             double fontSize = -1;
-            object elem = null;
 
             if (!DA.GetData("Elements to Adjust", ref elem)) return;
+            DA.GetData("Foreground", ref fgCol);
+            DA.GetData("Background", ref bgCol);
+            DA.GetData("Font Size", ref fontSize);
 
-            var hasfgCol = DA.GetData("Foreground", ref fgCol);
-            var hasbgCol = DA.GetData("Background", ref bgCol);
-            var hasFontSize = DA.GetData("Font Size", ref fontSize);
+            var control = HUI_Util.GetUIElement<Control>(elem);
+            if (control == null) return;
 
-
-            //Get the "FrameworkElement" (basic UI element) from an object
-            FrameworkElement f = HUI_Util.GetUIElement<FrameworkElement>(elem);
-            Selector selector = f as Selector;
-            ScrollViewer sv = f as ScrollViewer;
-            ChartBase cb = f as ChartBase;
-
-
-            if (f is Expander exp)
-            {
-                if (hasfgCol) exp.Foreground = new SolidColorBrush(HUI_Util.ToMediaColor(fgCol.Value));
-                if (hasbgCol) exp.Background = new SolidColorBrush(HUI_Util.ToMediaColor(bgCol.Value));
-                if (!hasFontSize) return;
-                var header = exp.Header;
-                TextBlock myHeader = null;
-                if (header is string headString)
-                {
-                    myHeader = new TextBlock();
-                    myHeader.Text = headString;
-
-                }
-                else
-                {
-                    myHeader = exp.Header as TextBlock;
-
-                }
-                myHeader.FontSize = fontSize;
-                exp.Header = myHeader;
-                return;
-            }
-
-
-            // var ChartElem = HUI_Util.GetUIElement<ChartBase>(ChartObject);
-            if (f is Grid g)
-            {
-                foreach (UIElement child in g.Children)
-                {
-                    ColorTextElement(child, fgCol, bgCol, fontSize);
-                }
-                if (hasbgCol) g.Background = new SolidColorBrush(HUI_Util.ToMediaColor(bgCol.Value));
-            }
-
-            //if it's a panel color its children
-            if (f is Panel panel)
-            {
-                foreach (UIElement child in panel.Children)
-                {
-                    ColorTextElement(child, fgCol, bgCol, fontSize);
-                }
-                if (hasbgCol) panel.Background = new SolidColorBrush(HUI_Util.ToMediaColor(bgCol.Value));
-            }
-
-            if (f is TabControl tabControl)
-            {
-                if (hasbgCol) tabControl.Background = new SolidColorBrush(HUI_Util.ToMediaColor(bgCol.Value));
-            }
-
-            //if it's a selector, color its items
-            else if (selector != null)
-            {
-                foreach (UIElement child in selector.Items)
-                {
-                    ColorTextElement(child, fgCol, bgCol, fontSize);
-                }
-            }
-
-            //if it's an itemscontrol, color its items
-            else if (sv != null)
-            {
-                if (sv.Content is ItemsControl ic)
-                {
-                    foreach (var item in ic.Items)
-                    {
-                        if (item is UIElement uie)
-                        {
-                            ColorTextElement(uie, fgCol, bgCol, fontSize);
-                        }
-
-                    }
-                }
-
-            }
-
-            //otherwise assume it's just a root level element
-            else
-            {
-                ColorTextElement(f, fgCol, bgCol, fontSize);
-            }
-
-
-
+            ApplyToTree(control, fgCol, bgCol, fontSize);
         }
 
-        //color a UIElement. Runs through a list of possible types it recognizes and tries to color/format appropriately. 
-        private static void ColorTextElement(UIElement f, System.Drawing.Color? fgCol, System.Drawing.Color? bgCol, double fontSize)
+        private static void ApplyToTree(Control c, System.Drawing.Color? fg, System.Drawing.Color? bg, double fontSize)
         {
-            // create brushes
-            Brush backgroundBrush = new SolidColorBrush();
-            Brush foregroundBrush = new SolidColorBrush();
-
-            // if a value exists, create a brush for it
-            if (bgCol.HasValue)
+            ApplyToOne(c, fg, bg, fontSize);
+            // Recurse into containers so a parent target paints all children.
+            // The Eto container surface is the same StackLayout / TableLayout /
+            // Scrollable tree HUI_Util.findSlider walks for sliders.
+            if (c is Container container)
             {
-                backgroundBrush = new SolidColorBrush(HUI_Util.ToMediaColor(bgCol.Value));
+                foreach (var child in container.Controls.ToList())
+                    ApplyToTree(child, fg, bg, fontSize);
             }
-            if (fgCol.HasValue)
-            {
-                foregroundBrush = new SolidColorBrush(HUI_Util.ToMediaColor(fgCol.Value));
-            }
-
-            // Apply brushes where available
-            //
-
-            //Try graph
-            if (f is ChartBase ChartB)
-            {
-                if (fgCol.HasValue) ChartB.Foreground = foregroundBrush;
-                if (bgCol.HasValue) ChartB.Background = backgroundBrush;
-                if (fontSize > 0) ChartB.FontSize = fontSize;
-            }
-            //Try Label
-            if (f is Label l)
-            {
-                if (fgCol.HasValue) l.Foreground = foregroundBrush;
-                if (bgCol.HasValue) l.Background = backgroundBrush;
-                if (fontSize > 0) l.FontSize = fontSize;
-                return;
-            }
-            // Try textbox
-            if (f is TextBox tb)
-            {
-                if (fgCol.HasValue) tb.Foreground = foregroundBrush;
-                if (bgCol.HasValue) tb.Background = backgroundBrush;
-                if (fontSize > 0) tb.FontSize = fontSize;
-                return;
-            }
-            //Try Textblock
-
-            if (f is TextBlock textblock)
-            {
-                if (fgCol.HasValue) textblock.Foreground = foregroundBrush;
-                if (bgCol.HasValue) textblock.Background = backgroundBrush;
-                if (fontSize > 0) textblock.FontSize = fontSize;
-                return;
-            }
-            //Try Button
-
-            if (f is Button b)
-            {
-                if (fgCol.HasValue) b.Foreground = foregroundBrush;
-                if (bgCol.HasValue) b.Background = backgroundBrush;
-                if (fontSize > 0) b.FontSize = fontSize;
-                return;
-            }
-            //Try Checkbox
-            if (f is CheckBox cb)
-            {
-                if (fgCol.HasValue) cb.Foreground = foregroundBrush;
-                if (bgCol.HasValue) cb.Background = backgroundBrush;
-                if (fontSize > 0) cb.FontSize = fontSize;
-                return;
-
-            }
-            //Try RadioButton
-            if (f is RadioButton rb)
-            {
-                if (fgCol.HasValue) rb.Foreground = foregroundBrush;
-                if (bgCol.HasValue) rb.Background = backgroundBrush;
-                if (fontSize > 0) rb.FontSize = fontSize;
-                return;
-            }
-
         }
 
-        /// <summary>
-        /// Provides an Icon for the component.
-        /// </summary>
+        private static void ApplyToOne(Control c, System.Drawing.Color? fg, System.Drawing.Color? bg, double fontSize)
+        {
+            if (c == null) return;
+            var fgColor = fg.HasValue ? Color.FromArgb(fg.Value.R, fg.Value.G, fg.Value.B, fg.Value.A) : (Color?)null;
+            var bgColor = bg.HasValue ? Color.FromArgb(bg.Value.R, bg.Value.G, bg.Value.B, bg.Value.A) : (Color?)null;
+
+            switch (c)
+            {
+                // TextControl is the Eto base for Label / TextBox / TextArea /
+                // RichTextArea / TextStepper — TextColor / BackgroundColor /
+                // Font all live on the common base, so the one case handles
+                // every text-bearing control.
+                case TextControl tc:
+                    if (fgColor.HasValue) tc.TextColor = fgColor.Value;
+                    if (bgColor.HasValue) tc.BackgroundColor = bgColor.Value;
+                    if (fontSize > 0 && tc.Font != null)
+                        tc.Font = new Font(tc.Font.Family, (float)fontSize, tc.Font.FontStyle);
+                    break;
+                case Panel panel:
+                    if (bgColor.HasValue) panel.BackgroundColor = bgColor.Value;
+                    break;
+                default:
+                    // Generic fallback for any Eto.Forms.CommonControl that
+                    // exposes BackgroundColor. Reflection sidesteps the type
+                    // explosion (DropDown, ListBox, CheckBox, RadioButton,
+                    // ColorPicker, GridView, ...).
+                    var bgProp = c.GetType().GetProperty("BackgroundColor");
+                    if (bgColor.HasValue && bgProp != null && bgProp.CanWrite)
+                        bgProp.SetValue(c, bgColor.Value);
+                    break;
+            }
+        }
+
         protected override System.Drawing.Bitmap Icon => Properties.Resources.AdjustElementAppearance;
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
-        public override Guid ComponentGuid
-        {
-            get { return new Guid("76eb5930-7b2b-4a11-839e-d3c00990af8b"); }
-        }
+        public override Guid ComponentGuid => new Guid("76eb5930-7b2b-4a11-839e-d3c00990af8b");
     }
 }

@@ -1,24 +1,27 @@
-﻿using Grasshopper.Kernel;
-using Grasshopper.Kernel.Types;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Drawing;
+using Eto.Forms;
+using Grasshopper.Kernel;
 
 namespace HumanUI.Components
 {
+    /// <summary>
+    /// Introspect an Eto.Forms control via reflection and emit its property
+    /// names + types. Useful for hunting fields to feed Set Element
+    /// Property. Marked experimental because the property surface differs
+    /// between Eto control types (and between Windows / Mac platform
+    /// handlers in some cases).
+    /// </summary>
     public class GetElementProperties_Component : GH_Component
     {
-        public GetElementProperties_Component() : base("Get Element Properties", "GetProps", "Tries to get all properties of any element. This is experimental!", "Human UI", "UI Main")
-        {
-
-        }
+        public GetElementProperties_Component()
+            : base("Get Element Properties", "GetProps",
+                "Tries to get all properties of any element. This is experimental!",
+                "Human UI", "UI Main")
+        { }
 
         public override Guid ComponentGuid => new Guid("{097D774D-A647-4DEA-8333-63E8F662A7EA}");
+        public override GH_Exposure Exposure => GH_Exposure.quarternary;
 
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
@@ -31,26 +34,23 @@ namespace HumanUI.Components
             pManager.AddTextParameter("Property Types", "T", "The types of the properties", GH_ParamAccess.list);
         }
 
-        public override GH_Exposure Exposure => GH_Exposure.quarternary;
-
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             object elem = null;
-
-
-
             if (!DA.GetData("UI Element", ref elem)) return;
 
-            object unwrappedElem = HUI_Util.GetUIElement<UIElement>(elem);
-            
+            var control = HUI_Util.GetUIElement<Control>(elem);
+            if (control == null)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Element could not be unwrapped to a control.");
+                return;
+            }
 
-            var type = unwrappedElem.GetType();
-            var props = type.GetProperties();
+            var props = control.GetType().GetProperties();
             DA.SetDataList("Property Names", props.Select(p => p.Name));
             DA.SetDataList("Property Types", props.Select(p => p.PropertyType.ToString()));
-
         }
 
-        protected override Bitmap Icon => Properties.Resources.GetProps;
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.GetProps;
     }
 }

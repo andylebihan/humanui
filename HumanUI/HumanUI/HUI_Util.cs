@@ -250,6 +250,105 @@ namespace HumanUI
         }
 
         /// <summary>
+        /// Push a value back into a value-carrying control. Inverse of
+        /// GetElementValue — Save/Restore Element States rely on this to
+        /// rehydrate sliders / textboxes / checkboxes / etc. from saved
+        /// shadow data.
+        /// </summary>
+        public static void TrySetElementValue(Control u, object value)
+        {
+            if (u == null || value == null) return;
+            switch (u)
+            {
+                case TextBox tb:
+                    tb.Text = value as string ?? value.ToString();
+                    break;
+                case CheckBox cb when value is bool b:
+                    cb.Checked = b;
+                    break;
+                case RadioButton rb when value is bool b:
+                    rb.Checked = b;
+                    break;
+                case Components.UI_Elements.HUI_FloatSlider slider when value is double d:
+                    slider.FloatValue = d;
+                    break;
+                case Components.UI_Elements.HUI_FloatSlider slider when value is float f:
+                    slider.FloatValue = f;
+                    break;
+                case Components.UI_Elements.HUI_FloatSlider slider when value is int i:
+                    slider.FloatValue = i;
+                    break;
+                case ColorPicker cp when value is System.Drawing.Color drc:
+                    cp.Value = Eto.Drawing.Color.FromArgb(drc.R, drc.G, drc.B, drc.A);
+                    break;
+                case ColorPicker cp when value is Eto.Drawing.Color ec:
+                    cp.Value = ec;
+                    break;
+                case ListBox lb when value is string s:
+                    SelectByText(lb.Items, s, idx => lb.SelectedIndex = idx);
+                    break;
+                case DropDown dd when value is string s:
+                    SelectByText(dd.Items, s, idx => dd.SelectedIndex = idx);
+                    break;
+                case Label l:
+                    l.Text = value as string ?? value.ToString();
+                    break;
+                case Expander exp when value is bool b:
+                    exp.Expanded = b;
+                    break;
+                case Scrollable scrollable when scrollable.ID == "GH_Checklist" && value is List<bool> bools:
+                    SetChecklistValues(scrollable, bools);
+                    break;
+            }
+        }
+
+        private static void SelectByText(System.Collections.IList items, string text, Action<int> set)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (items[i] is ListItem li && li.Text == text)
+                {
+                    set(i);
+                    return;
+                }
+            }
+        }
+
+        private static void SetChecklistValues(Scrollable scrollable, List<bool> bools)
+        {
+            int index = 0;
+            void walk(Control c)
+            {
+                if (c is CheckBox cb)
+                {
+                    if (index < bools.Count) cb.Checked = bools[index];
+                    index++;
+                }
+                else if (c is Container cont)
+                {
+                    foreach (var ch in cont.Controls) walk(ch);
+                }
+            }
+            walk(scrollable);
+        }
+
+        /// <summary>
+        /// Walk a control's parent chain looking for the first ancestor of type T.
+        /// Used by Save/Restore Element States to confirm an element is still
+        /// hosted in a window (and not orphaned during a deserialize race).
+        /// </summary>
+        public static T FindTopmostParent<T>(Control child) where T : Control
+        {
+            var p = child?.Parent;
+            while (p != null)
+            {
+                if (p is T match) return match;
+                p = p.Parent;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Detach a control from its current parent so a new container can adopt it. This
         /// matters because the same UIElement_Goo can be passed to multiple Set / Container
         /// components in a single solve; each takeover has to undo the previous parenting.

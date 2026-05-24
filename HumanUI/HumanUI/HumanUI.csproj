@@ -62,15 +62,11 @@
     components against master so the regression test still passes.
   -->
   <ItemGroup>
-    <!-- Upgraders that reference components still excluded in Phase 2 are themselves
-         excluded for now; the rest (Pulldown, Slider, AdjustElementAppearance,
-         RestoreState, TextBox) handle pure GH_UpgradeUtil swap-by-GUID so they compile
-         cleanly without needing their target component types alive at compile time. -->
+    <!-- Upgraders for components still excluded after the UI Main consolidation
+         (Upgrade_SetTabs needs SetTabs_Component, Upgrade_ValueListener needs
+         the deprecated ValueListener class) are excluded for now. The rest
+         compile cleanly. -->
     <Compile Remove="Upgraders\Upgrade_ValueListener.cs" />
-    <Compile Remove="Upgraders\Upgrade_SetWindowPropertiesComponent.cs" />
-    <Compile Remove="Upgraders\Upgrade_SetTabs.cs" />
-    <Compile Remove="Upgraders\Upgrade_GridComponent.cs" />
-    <Compile Remove="Components\Testing - Troubleshooting\**\*.cs" />
     <Compile Remove="Components\UI Containers\**\*.cs" />
     <Compile Remove="Components\UI Elements\**\*.cs" />
     <Compile Remove="Components\UI Graphs\**\*.cs" />
@@ -108,6 +104,7 @@
     <Compile Include="Components\UI Output\SetColorPicker_Component.cs" />
     <Compile Include="Components\UI Output\SetShape_Component.cs" />
     <Compile Include="Components\UI Output\Set3DView_Component.cs" />
+    <Compile Include="Components\UI Output\SetTabs_Component.cs" />
     <!-- Phase 3: specialized elements + button variants. Each include here pairs
          with a corresponding port from WPF/MahApps to Eto.Forms. The Include
          clauses come after the bulk Remove so SDK-style item ordering keeps them
@@ -147,28 +144,23 @@
     <Compile Include="Deprecated\CreatePullDown_Component_DEPRECATED.cs" />
     <Compile Include="Deprecated\CreatePullDown_Component_ALSO_DEPRECATED.cs" />
     <Compile Include="Deprecated\Legacy_BetaComponents_DEPRECATED.cs" />
-    <Compile Remove="Components\UI Main\AdjustElementAppearance_Component.cs" />
     <Compile Remove="Components\UI Main\AdjustElementPositioning_Component.cs" />
     <Compile Remove="Components\UI Main\CaptureWindow_Component.cs" />
-    <Compile Remove="Components\UI Main\CreateTransparentWindow_Component.cs" />
-    <Compile Remove="Components\UI Main\GetElementProperties_Component.cs" />
-    <Compile Remove="Components\UI Main\GetScreenDimensions_Component.cs" />
     <Compile Remove="Components\UI Main\HideShowElement_Component.cs" />
-    <Compile Remove="Components\UI Main\MakeChildWindow_Component.cs" />
-    <Compile Remove="Components\UI Main\RestoreElementState_Component.cs" />
-    <Compile Remove="Components\UI Main\SaveElementState_Component.cs" />
-    <Compile Remove="Components\UI Main\SetElementProperty_Component.cs" />
-    <Compile Remove="Components\UI Main\SetWindowProperties_Component.cs" />
-    <Compile Remove="Components\UI Main\WindowStatus_Component.cs" />
     <!-- Phase 3 UI Main entries (re-introduced from their Compile Remove just above). -->
     <Compile Include="Components\UI Main\AdjustElementPositioning_Component.cs" />
     <Compile Include="Components\UI Main\HideShowElement_Component.cs" />
+    <!-- Phase 7: UI Main consolidation. The small / self-contained UI Main
+         components (GetScreenDimensions / WindowStatus / MakeChildWindow /
+         CreateTransparentWindow) are ported to Eto in place; with no Remove
+         entry they're picked up by the SDK's default Compile glob.
+         Components\Testing - Troubleshooting\ElemFromGuid_Component.cs is
+         likewise picked up by default since it never used WPF. -->
     <Compile Remove="Custom Types\FilePicker.cs" />
     <Compile Remove="Custom Types\HUI_RhPickButton.cs" />
     <Compile Remove="Custom Types\MarkdownViewer.cs" />
     <Compile Remove="Custom Types\MDSliderElement.cs" />
     <Compile Remove="Custom Types\SliderEntryTextBox.cs" />
-    <Compile Remove="Custom Types\StateSet_Goo.cs" />
     <Compile Remove="Custom Types\TrueOnlyButton.cs" />
     <!-- Phase 3 custom types. -->
     <Compile Include="Custom Types\FilePicker.cs" />
