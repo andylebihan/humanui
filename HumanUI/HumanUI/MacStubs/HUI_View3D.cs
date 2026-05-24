@@ -43,6 +43,14 @@ namespace HumanUI
         private bool _panning;
         private PointF _lastMouse;
 
+        // Gesture-enable flags surfaced by Set3DViewProperties. Default to
+        // all-enabled so freshly created views are interactive without any
+        // extra setup. The Windows HelixViewport3D exposes IsPanEnabled /
+        // IsZoomEnabled / IsRotationEnabled — we mirror those.
+        public bool IsPanEnabled { get; set; } = true;
+        public bool IsZoomEnabled { get; set; } = true;
+        public bool IsRotationEnabled { get; set; } = true;
+
         public event EventHandler GeometryChanged;
 
         public HUI_View3D()
@@ -94,6 +102,34 @@ namespace HumanUI
             }
 
             GeometryChanged?.Invoke(this, EventArgs.Empty);
+            Invalidate();
+        }
+
+        /// <summary>
+        /// Position the camera at <paramref name="camLoc"/> looking at
+        /// <paramref name="camTarget"/>. Internally we re-derive yaw /
+        /// pitch / distance from the vector between the two so the orbit
+        /// state stays consistent with whatever the user drags next.
+        /// </summary>
+        public void SetView(Point3d camLoc, Point3d camTarget)
+        {
+            _target = camTarget;
+            var dir = camLoc - camTarget;
+            _distance = dir.Length;
+            if (_distance < 1e-6)
+            {
+                // Camera collapsed onto target — degenerate, just leave
+                // the orbit angles unchanged and clamp distance off zero.
+                _distance = 0.5;
+                return;
+            }
+            dir.Unitize();
+            // dir = (cos yaw * cos pitch, sin yaw * cos pitch, sin pitch).
+            _pitch = Math.Asin(Math.Max(-1, Math.Min(1, dir.Z)));
+            _yaw = Math.Atan2(dir.Y, dir.X);
+            // Clamp pitch just shy of straight-up to match the drag bounds.
+            if (_pitch < -Math.PI / 2 + 0.05) _pitch = -Math.PI / 2 + 0.05;
+            if (_pitch > Math.PI / 2 - 0.05) _pitch = Math.PI / 2 - 0.05;
             Invalidate();
         }
 
@@ -276,11 +312,11 @@ namespace HumanUI
             _lastMouse = e.Location;
             if (e.Buttons == MouseButtons.Primary && e.Modifiers.HasFlag(Keys.Shift))
             {
-                _panning = true;
+                if (IsPanEnabled) _panning = true;
             }
             else if (e.Buttons == MouseButtons.Primary)
             {
-                _orbiting = true;
+                if (IsRotationEnabled) _orbiting = true;
             }
             e.Handled = true;
         }
@@ -328,6 +364,7 @@ namespace HumanUI
 
         private void OnMouseWheel(object sender, MouseEventArgs e)
         {
+            if (!IsZoomEnabled) return;
             // Negative wheel = zoom in (dolly toward target). Match the
             // Helix gesture so the muscle memory carries over.
             double factor = Math.Pow(1.15, -e.Delta.Height);

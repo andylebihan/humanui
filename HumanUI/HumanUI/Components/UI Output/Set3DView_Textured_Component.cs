@@ -1,35 +1,30 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-
 using Grasshopper.Kernel;
 using Rhino.Geometry;
-
+#if HUI_WINDOWS
 using HelixToolkit.Wpf;
-
 using System.Windows.Media.Media3D;
+#endif
 
 namespace HumanUI.Components.UI_Output
 {
     /// <summary>
-    /// A special version of the set3DView component that accepts textures. 
+    /// Textured variant of Set 3D View. Windows uses HelixToolkit's
+    /// material/texture pipeline (image-file paths get loaded as
+    /// DiffuseMaterials). Mac falls back to plain colored meshes with a
+    /// remark — the HUI_View3D software renderer doesn't support
+    /// textures.
     /// </summary>
-    /// <seealso cref="Grasshopper.Kernel.GH_Component" />
     public class Set3DViewTex_Component : GH_Component
     {
-        /// <summary>
-        /// Initializes a new instance of the Set3DViewTex_Component class.
-        /// </summary>
         public Set3DViewTex_Component()
             : base("Set 3D View Textured", "Set3DViewTex",
                 "Allows you to modify the contents of an existing 3D view.",
                 "Human UI", "UI Output")
-        {
-        }
+        { }
 
-        /// <summary>
-        /// Registers all the input parameters for this component.
-        /// </summary>
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("3D View", "V", "The 3D view to modify", GH_ParamAccess.item);
             pManager.AddMeshParameter("Mesh to display", "M", "The mesh(es) to display in the viewport", GH_ParamAccess.list);
@@ -38,126 +33,95 @@ namespace HumanUI.Components.UI_Output
             pManager[2].Optional = true;
         }
 
-        /// <summary>
-        /// Registers all the output parameters for this component.
-        /// </summary>
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
-        {
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager) { }
 
-        }
-
-        /// <summary>
-        /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             object o = null;
-            List<Mesh> m = new List<Mesh>();
-            List<string> texBitmap = new List<string>();
-            List<System.Drawing.Color> cols = new List<System.Drawing.Color>();
-            if (!DA.GetData<object>("3D View", ref o)) return;
-            DA.GetDataList<Mesh>("Mesh to display", m);
+            var meshes = new List<Mesh>();
+            var textures = new List<string>();
+            var cols = new List<System.Drawing.Color>();
+            if (!DA.GetData("3D View", ref o)) return;
+            DA.GetDataList("Mesh to display", meshes);
+            bool hasTexture = DA.GetDataList("Mesh Texture", textures);
+            bool hasColor = DA.GetDataList("Mesh Colors", cols);
 
-            bool hasTexture = DA.GetDataList<string>("Mesh Texture", texBitmap);
-            bool hasColor = DA.GetDataList<System.Drawing.Color>("Mesh Colors", cols);
+#if HUI_WINDOWS
+            var vp3 = HUI_Util.GetUIElement<HelixViewport3D>(o);
+            if (vp3 == null)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Could not resolve the 3D View element.");
+                return;
+            }
 
-
-            HelixViewport3D vp3 = HUI_Util.GetUIElement<HelixViewport3D>(o);
             ModelVisual3D mv3 = GetModelVisual3D(vp3);
-            List<ModelVisual3D> mv3s = GetModels(vp3);
-            List<Material> mats = new List<Material>();
+            var mv3s = GetModels(vp3);
+            var mats = new List<Material>();
 
-   
-            //empty out the helixviewport
             vp3.Children.Clear();
             vp3.Children.Add(new SunLight());
 
-            if (!hasColor && !hasTexture) //if user has not specified either color or texture
+            if (!hasColor && !hasTexture)
             {
-                //for all the models
-                foreach (ModelVisual3D mv30 in mv3s)
+                // Preserve existing materials across mesh swap.
+                foreach (var mv30 in mv3s)
                 {
-                    Model3DGroup model = mv30.Content as Model3DGroup;
-                    foreach (Model3D mod in model.Children)
+                    if (mv30.Content is Model3DGroup model)
                     {
-                        if (mod is GeometryModel3D)
+                        foreach (var mod in model.Children)
                         {
-                            GeometryModel3D geom = mod as GeometryModel3D;
-                            //extract the current material settings
-                            mats.Add(geom.Material);
+                            if (mod is GeometryModel3D geom) mats.Add(geom.Material);
                         }
                     }
                 }
-                //pass in the new mesh with the existing materials
-                mv3.Content = new _3DViewModel(m, mats).Model;
+                mv3.Content = new _3DViewModel(meshes, mats).Model;
             }
-            else if(!hasTexture)
+            else if (!hasTexture)
             {
-                //pass in the new mesh with new colors
-                mv3.Content = new _3DViewModel(m, cols).Model;
+                mv3.Content = new _3DViewModel(meshes, cols).Model;
             }
             else
             {
-                //pass in the new mesh with new textures
-                mv3.Content = new _3DViewModel(m, texBitmap).Model;
+                mv3.Content = new _3DViewModel(meshes, textures).Model;
             }
-
-
-
-            //add the model back into the viewport
             vp3.Children.Add(mv3);
-
-
+#else
+            // Mac: HUI_View3D doesn't render textures. Fall back to plain
+            // colored geometry and emit a remark if the user supplied a
+            // texture path so they know it's been silently ignored.
+            var view = HUI_Util.GetUIElement<HUI_View3D>(o);
+            if (view == null)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Could not resolve the 3D View element.");
+                return;
+            }
+            if (hasTexture)
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
+                    "Mesh textures are not supported on Mac (HUI_View3D is a software renderer). Falling back to flat colors.");
+            if (cols.Count == 0) cols.Add(System.Drawing.Color.Red);
+            view.SetGeometry(meshes, cols);
+#endif
         }
 
-        /// <summary>
-        /// Provides an Icon for the component.
-        /// </summary>
         protected override System.Drawing.Bitmap Icon => Properties.Resources.Set3dView_textured;
 
-        /// <summary>
-        /// Extracts the ModelVisual3D from the HelixViewport
-        /// </summary>
-        /// <param name="vp3">The VP3.</param>
-        /// <returns>A ModelVisual3D</returns>
-        ModelVisual3D GetModelVisual3D(HelixViewport3D vp3)
+#if HUI_WINDOWS
+        private static ModelVisual3D GetModelVisual3D(HelixViewport3D vp3)
         {
-            foreach (Visual3D v in vp3.Children)
-            {
-                if (v is ModelVisual3D)
-                {
-                    return v as ModelVisual3D;
-                }
-            }
+            foreach (var v in vp3.Children)
+                if (v is ModelVisual3D mv) return mv;
             return null;
-
         }
 
-        /// <summary>
-        /// Extracts a list of ModelVisual3D from a given HelixViewport
-        /// </summary>
-        /// <param name="vp3">The Helix Viewport 3d.</param>
-        /// <returns>a list of ModelVisual3D </returns>
-        List<ModelVisual3D> GetModels(HelixViewport3D vp3)
+        private static List<ModelVisual3D> GetModels(HelixViewport3D vp3)
         {
-            List<ModelVisual3D> models = new List<ModelVisual3D>();
-            foreach (Visual3D v in vp3.Children)
-            {
-                if (v is ModelVisual3D)
-                {
-                    models.Add(v as ModelVisual3D);
-                }
-
-            }
+            var models = new List<ModelVisual3D>();
+            foreach (var v in vp3.Children)
+                if (v is ModelVisual3D mv) models.Add(mv);
             return models;
-
         }
+#endif
 
-
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
         public override Guid ComponentGuid => new Guid("{47D12D28-2711-435A-A445-DD4016EBB363}");
     }
 }

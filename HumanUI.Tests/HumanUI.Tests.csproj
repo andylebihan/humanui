@@ -25,15 +25,13 @@
     <ProjectReference Include="..\HumanUI\HumanUI\HumanUI.csproj" />
   </ItemGroup>
 
-  <!-- Phase 0 of the Eto migration: ValueListener and ~100 other components are
-       temporarily excluded from compile in HumanUI.csproj. The contract snapshot
-       tests need most of those components alive to do their thing, so we skip the
-       SnapshotComparison and ContractSnapshotTests during the migration. Both
-       come back online as components are restored in phases 1-5. -->
+  <!-- ContractSnapshotTests + SnapshotComparison stay disabled until the
+       contract-baseline.json is regenerated against the current component
+       set (the original baseline was captured pre-migration). ComponentSmoke
+       comes back online — every Create*/Set* component is now ported. -->
   <ItemGroup>
     <Compile Remove="ContractSnapshotTests.cs" />
     <Compile Remove="SnapshotComparison.cs" />
-    <Compile Remove="ComponentSmokeTests.cs" />
   </ItemGroup>
 
 </Project>

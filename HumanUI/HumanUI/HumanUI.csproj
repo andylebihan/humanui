@@ -109,6 +109,10 @@
     <Compile Include="Components\UI Output\SetShape_Component.cs" />
     <Compile Include="Components\UI Output\Set3DView_Component.cs" />
     <Compile Include="Components\UI Output\SetTabs_Component.cs" />
+    <!-- Phase 7 additions: previously-orphaned UI Output components. -->
+    <Compile Include="Components\UI Output\SetExpander_Component.cs" />
+    <Compile Include="Components\UI Output\Set3DViewProperties_Component.cs" />
+    <Compile Include="Components\UI Output\Set3DView_Textured_Component.cs" />
     <!-- Phase 3: specialized elements + button variants. Each include here pairs
          with a corresponding port from WPF/MahApps to Eto.Forms. The Include
          clauses come after the bulk Remove so SDK-style item ordering keeps them
