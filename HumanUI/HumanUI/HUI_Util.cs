@@ -194,6 +194,11 @@ namespace HumanUI
                 case HUI_Chart c: return c.SelectedCategory ?? string.Empty;
                 case HUI_MultiChart mc:
                     return new[] { mc.SelectedCategory ?? string.Empty, mc.SelectedSeries ?? string.Empty };
+                // 3D View has no scalar "value" the way a slider does — the
+                // Windows side returns the HelixViewport3D when asked, so
+                // mirror that and return the Drawable itself. ValueListener
+                // wraps it in GH_ObjectWrapper.
+                case HUI_View3D v: return v;
 #endif
 #if HUI_WINDOWS
                 // HUI_WpfHost wraps a WPF FrameworkElement for the Hard 5
