@@ -1,39 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using Grasshopper.Kernel;
-using Rhino.Geometry;
-using HumanUIBaseApp;
-using System.Windows.Media;
-using System.Windows;
-using System.Windows.Media.Imaging;
+using System;
 using System.IO;
-using System.Windows.Controls;
+using Eto.Forms;
+using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
-using Control = System.Windows.Forms.Control;
-using Size = System.Windows.Size;
+using HumanUIBaseApp;
 
 namespace HumanUI.Components.UI_Main
 {
+    /// <summary>
+    /// Save a HUI window or individual element to a PNG. Implementation
+    /// uses System.Drawing screen capture under HUI_WINDOWS — much simpler
+    /// than the original WPF VisualBrush + RenderTargetBitmap path, and it
+    /// captures whatever pixels are actually on screen (so user theming
+    /// and per-platform native controls are preserved). The Mac path is a
+    /// warn-and-skip stub for now; a proper Mac implementation needs
+    /// Cocoa NSBitmapImageRep interop and hasn't been done yet.
+    /// </summary>
     public class CaptureWindow_Component : GH_Component
     {
-        /// <summary>
-        /// Initializes a new instance of the CaptureWindow_Component class.
-        /// </summary>
         public CaptureWindow_Component()
-          : base("Capture Window or Element to File", "Capture",
-              "Capture a HUI Window or individual element to an image",
-             "Human UI", "UI Main")
-        {
-        }
+            : base("Capture Window or Element to File", "Capture",
+                "Capture a HUI Window or individual element to an image",
+                "Human UI", "UI Main")
+        { }
 
         public override GH_Exposure Exposure => GH_Exposure.secondary;
 
-
-        /// <summary>
-        /// Registers all the input parameters for this component.
-        /// </summary>
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Window or Element", "W", "The Window to Capture", GH_ParamAccess.item);
             pManager.AddTextParameter("File Path", "F", "The file path where the image should be saved", GH_ParamAccess.item);
@@ -44,115 +37,114 @@ namespace HumanUI.Components.UI_Main
                 GH_ParamAccess.item, false);
         }
 
-        /// <summary>
-        /// Registers all the output parameters for this component.
-        /// </summary>
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
-        {
-        }
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager) { }
 
-        /// <summary>
-        /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             object o = null;
-            MainWindow mw = null;
-            UIElement_Goo uig = null;
-            string filePath = "";
+            string filePath = string.Empty;
             double scaleFactor = 1.0;
             bool run = false;
-            bool insideScrollable = false;
+            bool entireWindow = false;
 
-            if (!DA.GetData<object>("Window or Element", ref o)) return;
-        
+            if (!DA.GetData("Window or Element", ref o)) return;
+            if (!DA.GetData("File Path", ref filePath)) return;
+            if (!DA.GetData("Scale Factor", ref scaleFactor)) return;
+            if (!DA.GetData("Run", ref run)) return;
+            if (!DA.GetData("Capture Entire Window", ref entireWindow)) return;
 
-            if (!DA.GetData<string>("File Path", ref filePath)) return;
-            if (!DA.GetData<double>("Scale Factor", ref scaleFactor)) return;
-            if (!DA.GetData<bool>("Run", ref run)) return;
-            if (!DA.GetData<bool>("Capture Entire Window", ref insideScrollable)) return;
+            if (!run) return;
 
-            uig = o as UIElement_Goo;
-            var wrapper = o as GH_ObjectWrapper;
-            if (wrapper != null) mw = wrapper.Value as MainWindow;
-            FrameworkElement fe = null;
+            // Resolve the input to either a MainWindow or a Control. Same
+            // disambiguation pattern as the WPF version — element flows in
+            // wrapped in UIElement_Goo, window in GH_ObjectWrapper.
+            MainWindow window = null;
+            Control element = null;
+            switch (o)
+            {
+                case UIElement_Goo goo: element = goo.element; break;
+                case GH_ObjectWrapper wrapper when wrapper.Value is MainWindow mw: window = mw; break;
+                case MainWindow mw: window = mw; break;
+                case Control c: element = c; break;
+            }
 
-            var isWindow = mw != null;
-
-            if (mw == null && uig == null)
+            if (window == null && element == null)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "There was a problem processing this element/Window");
                 return;
             }
 
-            if (!isWindow)
+#if HUI_WINDOWS
+            Eto.Drawing.Point origin;
+            Eto.Drawing.Size size;
+            if (window != null)
             {
-                fe = uig.element as FrameworkElement;
+                if (entireWindow)
+                {
+                    // Capture the entire ClientSize, no title-bar chrome.
+                    origin = ToPoint(window.PointToScreen(Eto.Drawing.PointF.Empty));
+                    size = window.ClientSize;
+                }
+                else
+                {
+                    origin = window.Location;
+                    size = window.Size;
+                }
+            }
+            else
+            {
+                origin = ToPoint(element.PointToScreen(Eto.Drawing.PointF.Empty));
+                size = element.Size;
             }
 
-            
-
-
-            var toCapture = fe;
-
-
-            if (!run) return;
-            if (isWindow)
+            if (size.Width <= 0 || size.Height <= 0)
             {
-
-                var grid = mw.Content as Grid;
-
-                var scrollViewer = grid.Children[0];
-
-                toCapture = insideScrollable ? ((scrollViewer as ScrollViewer).Content as Grid) : mw as FrameworkElement;
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning,
+                    "Element has zero or negative dimensions — nothing to capture.");
+                return;
             }
-          //  toCapture.Measure(Size.Empty);
-           // toCapture.
 
-            var size = new Size(toCapture.ActualWidth, toCapture.ActualHeight);
-            //while (Math.Abs(size.Width) < 0.001 || Math.Abs(size.Height) < 0.001)
-            //{
-            //    var parent = toCapture.Parent as FrameworkElement;
-            //    if (parent == null) break;
-            //    size = new Size(parent.ActualWidth, parent.ActualHeight);
-            //}
-            var rect = new Rect(new System.Windows.Point(), size);
-         //   toCapture.Arrange(rect);
+            int captureW = Math.Max(1, (int)Math.Round(size.Width * scaleFactor));
+            int captureH = Math.Max(1, (int)Math.Round(size.Height * scaleFactor));
 
-            var visual = new DrawingVisual();
-            using (var context = visual.RenderOpen())
+            using var raw = new System.Drawing.Bitmap(size.Width, size.Height);
+            using (var g = System.Drawing.Graphics.FromImage(raw))
             {
-                context.DrawRectangle(new VisualBrush(toCapture) { Stretch = Stretch.None }, null,
-                                     rect);
+                g.CopyFromScreen(origin.X, origin.Y, 0, 0, new System.Drawing.Size(size.Width, size.Height));
             }
-            visual.Transform = new ScaleTransform(scaleFactor, scaleFactor);
 
-            var rtb = new RenderTargetBitmap((int)(size.Width * scaleFactor), (int)(size.Height * scaleFactor), 96, 96, PixelFormats.Pbgra32);
-
-            toCapture.Measure(toCapture.RenderSize);
-         //   toCapture.Arrange(rect);
-
-            rtb.Render(visual);
-
-
-            var enc = new PngBitmapEncoder();
-
-            enc.Frames.Add(BitmapFrame.Create(rtb));
-            using (var stm = File.Create(filePath))
+            if (Math.Abs(scaleFactor - 1.0) > 1e-6)
             {
-                enc.Save(stm);
+                using var scaled = new System.Drawing.Bitmap(captureW, captureH);
+                using (var g = System.Drawing.Graphics.FromImage(scaled))
+                {
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    g.DrawImage(raw, 0, 0, captureW, captureH);
+                }
+                EnsureDir(filePath);
+                scaled.Save(filePath, System.Drawing.Imaging.ImageFormat.Png);
             }
+            else
+            {
+                EnsureDir(filePath);
+                raw.Save(filePath, System.Drawing.Imaging.ImageFormat.Png);
+            }
+#else
+            AddRuntimeMessage(GH_RuntimeMessageLevel.Warning,
+                "Capture Window is not yet supported on Mac. The Windows path uses System.Drawing.Graphics.CopyFromScreen; a Mac port needs Cocoa NSBitmapImageRep interop.");
+#endif
         }
 
-        /// <summary>
-        /// Provides an Icon for the component.
-        /// </summary>
-        protected override System.Drawing.Bitmap Icon => Properties.Resources.captureWindow;
+        private static Eto.Drawing.Point ToPoint(Eto.Drawing.PointF p)
+            => new Eto.Drawing.Point((int)Math.Round(p.X), (int)Math.Round(p.Y));
 
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
+        private static void EnsureDir(string filePath)
+        {
+            var dir = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+        }
+
+        protected override System.Drawing.Bitmap Icon => Properties.Resources.captureWindow;
         public override Guid ComponentGuid => new Guid("{900FCBA9-1B83-403E-B909-9293146469D8}");
     }
 }

@@ -70,11 +70,7 @@
     components against master so the regression test still passes.
   -->
   <ItemGroup>
-    <!-- Upgraders for components still excluded after the UI Main consolidation
-         (Upgrade_SetTabs needs SetTabs_Component, Upgrade_ValueListener needs
-         the deprecated ValueListener class) are excluded for now. The rest
-         compile cleanly. -->
-    <Compile Remove="Upgraders\Upgrade_ValueListener.cs" />
+    <!-- Phase 7 onwards: every upgrader in Upgraders/ compiles cleanly. -->
     <Compile Remove="Components\UI Containers\**\*.cs" />
     <Compile Remove="Components\UI Elements\**\*.cs" />
     <Compile Remove="Components\UI Graphs\**\*.cs" />
@@ -153,7 +149,6 @@
     <Compile Include="Deprecated\CreatePullDown_Component_ALSO_DEPRECATED.cs" />
     <Compile Include="Deprecated\Legacy_BetaComponents_DEPRECATED.cs" />
     <Compile Remove="Components\UI Main\AdjustElementPositioning_Component.cs" />
-    <Compile Remove="Components\UI Main\CaptureWindow_Component.cs" />
     <Compile Remove="Components\UI Main\HideShowElement_Component.cs" />
     <!-- Phase 3 UI Main entries (re-introduced from their Compile Remove just above). -->
     <Compile Include="Components\UI Main\AdjustElementPositioning_Component.cs" />
