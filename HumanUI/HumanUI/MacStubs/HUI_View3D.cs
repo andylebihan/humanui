@@ -167,9 +167,16 @@ namespace HumanUI
                 path.LineTo(tri.B);
                 path.LineTo(tri.C);
                 path.CloseFigure();
-                using var brush = new SolidBrush(ToEto(tri.Color));
+                var fill = ToEto(tri.Color);
+                using var brush = new SolidBrush(fill);
                 g.FillPath(brush, path);
-                using var pen = new Pen(new Color(0, 0, 0, 0.18f), 0.5f);
+                // Stroke in the SAME color as the fill (not a contrast color)
+                // to cover the half-pixel anti-aliased gap that Eto's path
+                // fill leaves around each triangle. Without this every face
+                // edge would show as a faint seam where the AA gradient of
+                // two adjacent triangles meets; with a contrast color we'd
+                // get the wireframe look HelixToolkit doesn't show.
+                using var pen = new Pen(fill, 1f);
                 g.DrawPath(pen, path);
             }
         }
