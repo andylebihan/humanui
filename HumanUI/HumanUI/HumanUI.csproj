@@ -39,11 +39,19 @@
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
   </ItemGroup>
 
-  <!-- Phase 5 WPF dependencies — Windows TFM only. -->
+  <!-- Phase 5 WPF dependencies — Windows TFM only. MahApps.Metro is
+       intentionally NOT referenced: the WPF MetroWindow has been replaced
+       by Eto.Forms.Form (in HumanUIBaseApp.MainWindow), the WPF accent /
+       theme manager is gone from SetWindowProperties (Eto has no
+       equivalent), and the WPF-styled buttons no longer use the MahApps
+       Square / Circle / Borderless styles. Keeping it referenced would
+       ship MahApps.Metro.dll + ControlzEx.dll +
+       Microsoft.Xaml.Behaviors.dll into Rhino's load context — Rhino
+       loads MahApps itself for its own UI, so a duplicate copy here is a
+       DLL-hell risk. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net7.0-windows'">
     <PackageReference Include="HelixToolkit.Wpf" Version="2.25.0" />
     <PackageReference Include="Extended.Wpf.Toolkit" Version="4.6.0" />
-    <PackageReference Include="MahApps.Metro" Version="2.4.10" />
     <PackageReference Include="De.TorstenMandelkow.MetroChart" Version="1.0.0" />
   </ItemGroup>
 
