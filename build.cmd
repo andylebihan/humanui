@@ -11,7 +11,11 @@ set YAK="C:\Program Files\Rhino 8\System\Yak.exe"
 
 del /Q "%REPO%dist\*.yak" 2>nul
 copy /Y "%REPO%HumanUI\HumanUI\bin\Release\*.gha" "%REPO%dist\" >nul
+REM Copy supplementary DLLs only — skip HumanUI.dll (it's the same bits as
+REM HumanUI.gha and yak only needs the .gha; bundling both would just bloat
+REM the package).
 copy /Y "%REPO%HumanUI\HumanUI\bin\Release\*.dll" "%REPO%dist\" >nul
+del /Q "%REPO%dist\HumanUI.dll" 2>nul
 copy /Y "%REPO%HumanUI\HumanUI\bin\Release\Styles.Default.xaml" "%REPO%dist\" >nul
 
 pushd "%REPO%dist"

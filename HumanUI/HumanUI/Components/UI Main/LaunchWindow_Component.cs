@@ -299,6 +299,14 @@ namespace HumanUI.Components.UI_Main
             //remove the listeners
             mw.Closing -= mw_Closing;
             mw.Closed -= mw_Closed;
+            // Programmatic teardown (SetupWin / RemovedFromDocument) already
+            // constructs the replacement window on its own path — if we re-enter
+            // SetupWin here we'd build two MainWindow instances (the second one
+            // immediately tearing down the first via _allowProgrammaticClose
+            // again, and so on). Only resurrect when the window died from a
+            // non-programmatic close that bypassed mw_Closing (e.g. an Alt+F4
+            // that fired straight to Closed in some host versions).
+            if (_allowProgrammaticClose) return;
             //initialize a brand new window. Once it's closed, you can't get it back.
             SetupWin();
         }
