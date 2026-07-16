@@ -563,13 +563,35 @@ namespace HumanUI
 
         void ExpireThis(object sender, EventArgs e)
         {
-            // Mark this component expired but defer the actual solve. GH_Document's
-            // ScheduleSolution coalesces repeated calls within the delay window so a
-            // slider drag firing 60 ValueChanged events / sec becomes ~20 solves / sec
-            // worst case (and in practice one solve once the drag stops), instead of
-            // 60 nested re-entrant ExpireSolution(true) calls on the WPF thread.
+            GH_Document doc = OnPingDocument();
+            if (doc == null) return;
+
+            // Never expire or (re)schedule while a solution is actually running. When a
+            // ValueListener sits in a feedback loop -- its value drives a "Set" component
+            // that writes back to the very element it is listening to -- that programmatic
+            // write raises the element's change event *during* the solve. The pre-fix code
+            // called ExpireSolution here unconditionally, which in that situation either
+            // threw "Object expired during a solution" (adaptive pulldowns, forum post #7)
+            // or, for a listener that depends on its own output, spun up an endless resolve
+            // loop so the window never settled (forum post #6). The in-flight solve already
+            // reflects the new value, so the correct action mid-solution is to do nothing.
+            if (doc.SolutionState == GH_ProcessStep.Process) return;
+
+            // Otherwise defer the expire onto the solution thread via the scheduler rather
+            // than calling ExpireSolution(true) synchronously on the WPF event thread.
+            // ScheduleSolution coalesces repeated calls inside the delay window, so a slider
+            // drag firing dozens of ValueChanged events per second collapses to a single
+            // solve once it settles -- without the nested re-entrant solve storms of the
+            // original code.
+            doc.ScheduleSolution(DebounceMs, ScheduleExpireCallback);
+        }
+
+        // Runs on the solution thread immediately before the scheduled solve. Expiring here
+        // is safe: the scheduler only fires this when no other solution is in progress, so
+        // there is no re-entrancy and no "expired during a solution" exception.
+        void ScheduleExpireCallback(GH_Document doc)
+        {
             ExpireSolution(false);
-            OnPingDocument()?.ScheduleSolution(DebounceMs);
         }
 
 
