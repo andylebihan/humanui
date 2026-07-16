@@ -37,21 +37,40 @@ namespace HumanUI
         /// <param name="child">The child.</param>
         public static void removeParent(UIElement child)
         {
-            var parent = VisualTreeHelper.GetParent(child);
-            if (parent == null)
-            {
-                parent = child.GetParentObject();
-            }
+            // Prefer the LOGICAL parent. That is the parent WPF checks when the element is
+            // re-added elsewhere ("Specified element is already the logical child of another
+            // element. Disconnect it first."); the visual parent is often a template part
+            // (e.g. a ContentPresenter) that does not own the element. Fall back to the
+            // visual tree and the old helper only when there is no logical parent.
+            DependencyObject parent = LogicalTreeHelper.GetParent(child)
+                                      ?? VisualTreeHelper.GetParent(child)
+                                      ?? child.GetParentObject();
             if (parent == null) return; //object has no parent
 
-            if (parent is Panel parentAsPanel)
+            // Detach based on how the parent holds its children. Before this was only Panel
+            // and Border, so an element whose owner was a ContentControl (Expander,
+            // ScrollViewer, GroupBox, TabItem, ...) was never actually detached: under
+            // MahApps 1.x the visual parent happened to surface as a Panel, but under the
+            // 2.x control templates it surfaces as a ContentControl/ContentPresenter, so
+            // removeParent silently did nothing and the *next* Children.Add threw -- the
+            // "stack/expander" breakpoint reported against 0.8.10 (forum posts #5, #8).
+            switch (parent)
             {
-                parentAsPanel.Children.Remove(child);
-            }
-
-            if (parent is Border parentAsBorder)
-            {
-                parentAsBorder.Child = null;
+                case Panel panel:
+                    panel.Children.Remove(child);
+                    break;
+                case Decorator decorator: // Border, Viewbox, ...
+                    if (ReferenceEquals(decorator.Child, child)) decorator.Child = null;
+                    break;
+                case ContentControl contentControl: // Expander, ScrollViewer, GroupBox, TabItem, ...
+                    if (ReferenceEquals(contentControl.Content, child)) contentControl.Content = null;
+                    break;
+                case ContentPresenter presenter:
+                    if (ReferenceEquals(presenter.Content, child)) presenter.Content = null;
+                    break;
+                case ItemsControl itemsControl when itemsControl.Items.Contains(child):
+                    itemsControl.Items.Remove(child);
+                    break;
             }
 
 
